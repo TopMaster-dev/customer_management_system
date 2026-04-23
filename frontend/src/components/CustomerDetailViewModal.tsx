@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { AlertCircle, Pencil, Save, Trash2 } from 'lucide-react';
 import type {
   CustomerProfileFormData,
   CustomerDetailFormData,
@@ -7,6 +8,7 @@ import type {
 } from '../types/customer';
 import { formatPrice } from '../utils/formatPrice';
 import { API } from '../config';
+import { Button, Input, Modal, Select } from './ui';
 
 const initialProfile: CustomerProfileFormData = {
   birthday: '',
@@ -39,11 +41,6 @@ const initialPreference: CustomerPreferenceFormData = {
   favorite_brand: '',
 };
 
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sakura-300 focus:ring-1 focus:ring-sakura-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
-
-/** Western zodiac sign (星座) from date string YYYY-MM-DD. Returns Japanese name. */
 function getZodiacSignFromDate(dateStr: string): string {
   if (!dateStr || dateStr.length < 10) return '';
   const [, m, d] = dateStr.split('-').map(Number);
@@ -71,16 +68,33 @@ function getZodiacSignFromDate(dateStr: string): string {
   if (month === 11 && day <= 21) return '蠍座';
   if (month === 11 && day >= 22) return '射手座';
   if (month === 12 && day <= 21) return '射手座';
-  return '摩羯座'; // Dec 22 - Jan 19
+  return '摩羯座';
 }
 
-/** 干支 (eto) from date string YYYY-MM-DD. Returns 十二支 character. */
 function getEtoFromDate(dateStr: string): string {
   if (!dateStr || dateStr.length < 4) return '';
   const year = parseInt(dateStr.slice(0, 4), 10);
   if (Number.isNaN(year)) return '';
   const eto = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
   return eto[(year - 4) % 12] ?? '';
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-soft border-b border-slate-200 pb-2">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 text-sm">
+      <dt className="text-ink-soft shrink-0">{label}</dt>
+      <dd className="text-right text-ink">{value}</dd>
+    </div>
+  );
 }
 
 interface CustomerDetailViewModalProps {
@@ -109,9 +123,8 @@ export default function CustomerDetailViewModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const baseUrl = (path: string) => `${API}/${path}/${customerId}/`;
-
   useEffect(() => {
+    const baseUrl = (path: string) => `${API}/${path}/${customerId}/`;
     const fetchAll = async () => {
       setLoading(true);
       setError(null);
@@ -146,7 +159,7 @@ export default function CustomerDetailViewModal({
                 marital_status: d.marital_status || 'Single',
                 children_info: d.children_info || '',
               }
-            : initialDetail
+            : initialDetail,
         );
         setEditPreference(
           pr
@@ -157,7 +170,7 @@ export default function CustomerDetailViewModal({
                 hobby: pr.hobby || '',
                 favorite_brand: pr.favorite_brand || '',
               }
-            : initialPreference
+            : initialPreference,
         );
       } catch {
         setError('詳細情報の読み込みに失敗しました。もう一度お試しください。');
@@ -167,12 +180,13 @@ export default function CustomerDetailViewModal({
     fetchAll();
   }, [customerId]);
 
+  const baseUrl = (path: string) => `${API}/${path}/${customerId}/`;
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSaving(true);
     try {
-      // Update only the relevant resource per request (profile / detail / preference).
       if (profile) {
         await axios.patch(baseUrl('customer-profiles'), editProfile);
       } else {
@@ -202,7 +216,7 @@ export default function CustomerDetailViewModal({
       setPreference(editPreference);
       setMode('view');
       onSaved?.();
-    } catch (err: unknown) {
+    } catch {
       setError('保存に失敗しました。もう一度お試しください。');
     }
     setSaving(false);
@@ -228,112 +242,86 @@ export default function CustomerDetailViewModal({
   const hasAny = profile || detail || preference;
   const isEmpty = !loading && !hasAny;
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={onClose}>
-        <div className="rounded-2xl bg-white p-8 shadow-soft" onClick={(e) => e.stopPropagation()}>
-          <p className="text-gray-500">読み込み中…</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-soft border border-gray-100"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-sakura-50/80 backdrop-blur">
-          <h2 className="text-lg font-medium text-gray-800">詳細情報</h2>
-          <button type="button" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100" onClick={onClose} aria-label="閉じる">×</button>
-        </div>
-        <div className="p-5 space-y-6">
+    <Modal open onClose={onClose} title="詳細情報" size="lg">
+      {loading ? (
+        <p className="text-center text-sm text-ink-soft">読み込み中…</p>
+      ) : (
+        <div className="space-y-5">
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
           )}
 
           {confirmDelete ? (
-            <div className="rounded-xl border border-red-100 bg-red-50 p-4">
-              <p className="text-sm text-red-800">詳細情報をすべて削除しますか？</p>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-sm text-rose-800">詳細情報をすべて削除しますか？</p>
               <div className="mt-3 flex gap-2">
-                <button type="button" className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-sm" onClick={handleDelete} disabled={deleting}>{deleting ? '削除中…' : '削除する'}</button>
-                <button type="button" className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm" onClick={() => setConfirmDelete(false)}>キャンセル</button>
+                <Button variant="danger" size="sm" onClick={handleDelete} loading={deleting}>削除する</Button>
+                <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>キャンセル</Button>
               </div>
             </div>
           ) : mode === 'view' ? (
             <>
-              {isEmpty && <p className="text-sm text-gray-500">詳細情報はまだ登録されていません。</p>}
+              {isEmpty && <p className="text-sm text-ink-soft">詳細情報はまだ登録されていません。</p>}
               {profile && (
-                <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4">
-                  <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">プロフィール</h3>
-                  <dl className="mt-2 space-y-1 text-sm">
-                    <div><dt className="text-gray-500">誕生日</dt><dd>{profile.birthday}</dd></div>
-                    <div><dt className="text-gray-500">星座</dt><dd>{profile.zodiac}</dd></div>
-                    <div><dt className="text-gray-500">干支</dt><dd>{profile.animal_fortune}</dd></div>
+                <Section title="プロフィール">
+                  <dl className="space-y-2">
+                    <Row label="誕生日" value={profile.birthday} />
+                    <Row label="星座" value={profile.zodiac} />
+                    <Row label="干支" value={profile.animal_fortune} />
                   </dl>
-                </section>
+                </Section>
               )}
               {detail && (
-                <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4">
-                  <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">詳細</h3>
-                  <dl className="mt-2 space-y-2 text-sm">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div><dt className="text-gray-500">血液型</dt><dd>{detail.blood_type || '—'}</dd></div>
-                      <div><dt className="text-gray-500">出身地</dt><dd>{detail.birthplace || '—'}</dd></div>
-                    </div>
-                    {detail.appearance_memo != null && detail.appearance_memo !== '' && (
-                      <div><dt className="text-gray-500">外見メモ</dt><dd className="whitespace-pre-wrap">{detail.appearance_memo}</dd></div>
-                    )}
-                    <div><dt className="text-gray-500">会社名</dt><dd>{detail.company_name || '—'}</dd></div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div><dt className="text-gray-500">職種</dt><dd>{detail.job_title || '—'}</dd></div>
-                      <div><dt className="text-gray-500">勤務地</dt><dd>{detail.work_location || '—'}</dd></div>
-                    </div>
-                    {detail.job_description != null && detail.job_description !== '' && (
-                      <div><dt className="text-gray-500">仕事内容</dt><dd className="whitespace-pre-wrap">{detail.job_description}</dd></div>
-                    )}
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div><dt className="text-gray-500">月収（円）</dt><dd>{formatPrice(detail.monthly_income)}</dd></div>
-                      <div><dt className="text-gray-500">飲み代予算（円/月）</dt><dd>{formatPrice(detail.monthly_drinking_budget)}</dd></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div><dt className="text-gray-500">居住</dt><dd>{detail.residence_type === 'Own' ? '持家' : detail.residence_type === 'Rent' ? '賃貸' : detail.residence_type || '—'}</dd></div>
-                      <div><dt className="text-gray-500">最寄り駅</dt><dd>{detail.nearest_station || '—'}</dd></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div><dt className="text-gray-500">婚姻状況</dt><dd>{detail.marital_status === 'Single' ? '独身' : detail.marital_status === 'Married' ? '既婚' : detail.marital_status === 'Divorced' ? '離婚' : detail.marital_status === 'Widowed' ? '死別' : detail.marital_status || '—'}</dd></div>
-                      <div><dt className="text-gray-500">お子様</dt><dd>{detail.children_info || '—'}</dd></div>
-                    </div>
-                    <div><dt className="text-gray-500">恋人がいる</dt><dd>{detail.has_lover ? 'はい' : 'いいえ'}</dd></div>
+                <Section title="詳細">
+                  <dl className="space-y-2">
+                    <Row label="血液型" value={detail.blood_type || '—'} />
+                    <Row label="出身地" value={detail.birthplace || '—'} />
+                    {detail.appearance_memo && <Row label="外見メモ" value={<span className="whitespace-pre-wrap">{detail.appearance_memo}</span>} />}
+                    <Row label="会社名" value={detail.company_name || '—'} />
+                    <Row label="職種" value={detail.job_title || '—'} />
+                    <Row label="勤務地" value={detail.work_location || '—'} />
+                    {detail.job_description && <Row label="仕事内容" value={<span className="whitespace-pre-wrap">{detail.job_description}</span>} />}
+                    <Row label="月収（円）" value={<span className="num-tabular">{formatPrice(detail.monthly_income)}</span>} />
+                    <Row label="飲み代予算（円/月）" value={<span className="num-tabular">{formatPrice(detail.monthly_drinking_budget)}</span>} />
+                    <Row label="居住" value={detail.residence_type === 'Own' ? '持家' : detail.residence_type === 'Rent' ? '賃貸' : detail.residence_type || '—'} />
+                    <Row label="最寄り駅" value={detail.nearest_station || '—'} />
+                    <Row label="婚姻状況" value={detail.marital_status === 'Single' ? '独身' : detail.marital_status === 'Married' ? '既婚' : detail.marital_status === 'Divorced' ? '離婚' : detail.marital_status === 'Widowed' ? '死別' : detail.marital_status || '—'} />
+                    <Row label="お子様" value={detail.children_info || '—'} />
+                    <Row label="恋人がいる" value={detail.has_lover ? 'はい' : 'いいえ'} />
                   </dl>
-                </section>
+                </Section>
               )}
               {preference && (
-                <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4">
-                  <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">嗜好</h3>
-                  <dl className="mt-2 space-y-2 text-sm">
-                    <div><dt className="text-gray-500">お酒の強さ</dt><dd>{preference.alcohol_strength === 'Weak' ? '弱い' : preference.alcohol_strength === 'Strong' ? '強い' : preference.alcohol_strength || '—'}</dd></div>
-                    {preference.favorite_food != null && preference.favorite_food !== '' && (<div><dt className="text-gray-500">好きな食べ物</dt><dd className="whitespace-pre-wrap">{preference.favorite_food}</dd></div>)}
-                    {preference.dislike_food != null && preference.dislike_food !== '' && (<div><dt className="text-gray-500">苦手な食べ物</dt><dd className="whitespace-pre-wrap">{preference.dislike_food}</dd></div>)}
-                    {preference.hobby != null && preference.hobby !== '' && (<div><dt className="text-gray-500">趣味</dt><dd className="whitespace-pre-wrap">{preference.hobby}</dd></div>)}
-                    {preference.favorite_brand != null && preference.favorite_brand !== '' && (<div><dt className="text-gray-500">好きなブランド</dt><dd>{preference.favorite_brand}</dd></div>)}
+                <Section title="嗜好">
+                  <dl className="space-y-2">
+                    <Row label="お酒の強さ" value={preference.alcohol_strength === 'Weak' ? '弱い' : preference.alcohol_strength === 'Strong' ? '強い' : preference.alcohol_strength === 'Medium' ? '普通' : preference.alcohol_strength || '—'} />
+                    {preference.favorite_food && <Row label="好きな食べ物" value={<span className="whitespace-pre-wrap">{preference.favorite_food}</span>} />}
+                    {preference.dislike_food && <Row label="苦手な食べ物" value={<span className="whitespace-pre-wrap">{preference.dislike_food}</span>} />}
+                    {preference.hobby && <Row label="趣味" value={<span className="whitespace-pre-wrap">{preference.hobby}</span>} />}
+                    {preference.favorite_brand && <Row label="好きなブランド" value={preference.favorite_brand} />}
                   </dl>
-                </section>
+                </Section>
               )}
               <div className="flex flex-wrap gap-2 pt-2">
-                <button type="button" className="px-4 py-2 rounded-xl bg-sakura-400 text-white text-sm font-medium hover:bg-sakura-500" onClick={() => setMode('edit')}>編集</button>
-                {hasAny && <button type="button" className="px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm hover:bg-red-50" onClick={() => setConfirmDelete(true)}>削除</button>}
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-sm" onClick={onClose}>閉じる</button>
+                <Button size="sm" leftIcon={<Pencil className="h-3.5 w-3.5" />} onClick={() => setMode('edit')}>編集</Button>
+                {hasAny && (
+                  <Button size="sm" variant="outline" className="!border-rose-200 !text-rose-600 hover:!bg-rose-50" leftIcon={<Trash2 className="h-3.5 w-3.5" />} onClick={() => setConfirmDelete(true)}>
+                    削除
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={onClose}>閉じる</Button>
               </div>
             </>
           ) : (
-            <form onSubmit={handleSave} className="space-y-6">
-              <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4 space-y-3">
-                <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">プロフィール</h3>
-                <div>
-                  <label className={labelClass}>誕生日</label>
-                  <input
+            <form onSubmit={handleSave} className="space-y-5">
+              <Section title="プロフィール">
+                <div className="space-y-3">
+                  <Input
+                    label="誕生日"
                     type="date"
                     value={editProfile.birthday}
                     onChange={(e) => {
@@ -345,55 +333,94 @@ export default function CustomerDetailViewModal({
                         animal_fortune: getEtoFromDate(birthday),
                       }));
                     }}
-                    className={inputClass}
                   />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input label="星座" value={editProfile.zodiac} onChange={(e) => setEditProfile((p) => ({ ...p, zodiac: e.target.value }))} placeholder="誕生日で自動" />
+                    <Input label="干支" value={editProfile.animal_fortune} onChange={(e) => setEditProfile((p) => ({ ...p, animal_fortune: e.target.value }))} placeholder="誕生日で自動" />
+                  </div>
                 </div>
-                <div><label className={labelClass}>星座</label><input type="text" value={editProfile.zodiac} onChange={(e) => setEditProfile((p) => ({ ...p, zodiac: e.target.value }))} className={inputClass} placeholder="誕生日で自動" /></div>
-                <div><label className={labelClass}>干支</label><input type="text" value={editProfile.animal_fortune} onChange={(e) => setEditProfile((p) => ({ ...p, animal_fortune: e.target.value }))} className={inputClass} placeholder="誕生日で自動" /></div>
-              </section>
-              <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4 space-y-3">
-                <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">詳細</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className={labelClass}>血液型</label><input type="text" value={editDetail.blood_type} onChange={(e) => setEditDetail((d) => ({ ...d, blood_type: e.target.value }))} className={inputClass} /></div>
-                  <div><label className={labelClass}>出身地</label><input type="text" value={editDetail.birthplace} onChange={(e) => setEditDetail((d) => ({ ...d, birthplace: e.target.value }))} className={inputClass} /></div>
+              </Section>
+              <Section title="詳細">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input label="血液型" value={editDetail.blood_type} onChange={(e) => setEditDetail((d) => ({ ...d, blood_type: e.target.value }))} />
+                    <Input label="出身地" value={editDetail.birthplace} onChange={(e) => setEditDetail((d) => ({ ...d, birthplace: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-muted mb-1.5">外見メモ</label>
+                    <textarea value={editDetail.appearance_memo} onChange={(e) => setEditDetail((d) => ({ ...d, appearance_memo: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+                  </div>
+                  <Input label="会社名" value={editDetail.company_name} onChange={(e) => setEditDetail((d) => ({ ...d, company_name: e.target.value }))} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input label="職種" value={editDetail.job_title} onChange={(e) => setEditDetail((d) => ({ ...d, job_title: e.target.value }))} />
+                    <Input label="勤務地" value={editDetail.work_location} onChange={(e) => setEditDetail((d) => ({ ...d, work_location: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-muted mb-1.5">仕事内容</label>
+                    <textarea value={editDetail.job_description} onChange={(e) => setEditDetail((d) => ({ ...d, job_description: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input label="月収（円）" type="number" step="1" min="0" value={editDetail.monthly_income} onChange={(e) => setEditDetail((d) => ({ ...d, monthly_income: e.target.value }))} />
+                    <Input label="飲み代予算（円/月）" type="number" step="1" min="0" value={editDetail.monthly_drinking_budget} onChange={(e) => setEditDetail((d) => ({ ...d, monthly_drinking_budget: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Select label="居住" value={editDetail.residence_type} onChange={(e) => setEditDetail((d) => ({ ...d, residence_type: e.target.value }))}>
+                      <option value="Own">持家</option>
+                      <option value="Rent">賃貸</option>
+                      <option value="Other">その他</option>
+                    </Select>
+                    <Input label="最寄り駅" value={editDetail.nearest_station} onChange={(e) => setEditDetail((d) => ({ ...d, nearest_station: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Select label="婚姻状況" value={editDetail.marital_status} onChange={(e) => setEditDetail((d) => ({ ...d, marital_status: e.target.value }))}>
+                      <option value="Single">独身</option>
+                      <option value="Married">既婚</option>
+                      <option value="Divorced">離婚</option>
+                      <option value="Widowed">死別</option>
+                    </Select>
+                    <Input label="お子様" value={editDetail.children_info} onChange={(e) => setEditDetail((d) => ({ ...d, children_info: e.target.value }))} placeholder="なし など" />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={editDetail.has_lover}
+                      onChange={(e) => setEditDetail((d) => ({ ...d, has_lover: e.target.checked }))}
+                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    恋人がいる
+                  </label>
                 </div>
-                <div><label className={labelClass}>外見メモ</label><textarea value={editDetail.appearance_memo} onChange={(e) => setEditDetail((d) => ({ ...d, appearance_memo: e.target.value }))} className={inputClass} rows={2} /></div>
-                <div><label className={labelClass}>会社名</label><input type="text" value={editDetail.company_name} onChange={(e) => setEditDetail((d) => ({ ...d, company_name: e.target.value }))} className={inputClass} /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className={labelClass}>職種</label><input type="text" value={editDetail.job_title} onChange={(e) => setEditDetail((d) => ({ ...d, job_title: e.target.value }))} className={inputClass} /></div>
-                  <div><label className={labelClass}>勤務地</label><input type="text" value={editDetail.work_location} onChange={(e) => setEditDetail((d) => ({ ...d, work_location: e.target.value }))} className={inputClass} /></div>
+              </Section>
+              <Section title="嗜好">
+                <div className="space-y-3">
+                  <Select label="お酒の強さ" value={editPreference.alcohol_strength} onChange={(e) => setEditPreference((p) => ({ ...p, alcohol_strength: e.target.value }))}>
+                    <option value="Weak">弱い</option>
+                    <option value="Medium">普通</option>
+                    <option value="Strong">強い</option>
+                  </Select>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-muted mb-1.5">好きな食べ物</label>
+                    <textarea value={editPreference.favorite_food} onChange={(e) => setEditPreference((p) => ({ ...p, favorite_food: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-muted mb-1.5">苦手な食べ物</label>
+                    <textarea value={editPreference.dislike_food} onChange={(e) => setEditPreference((p) => ({ ...p, dislike_food: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-muted mb-1.5">趣味</label>
+                    <textarea value={editPreference.hobby} onChange={(e) => setEditPreference((p) => ({ ...p, hobby: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+                  </div>
+                  <Input label="好きなブランド" value={editPreference.favorite_brand} onChange={(e) => setEditPreference((p) => ({ ...p, favorite_brand: e.target.value }))} />
                 </div>
-                <div><label className={labelClass}>仕事内容</label><textarea value={editDetail.job_description} onChange={(e) => setEditDetail((d) => ({ ...d, job_description: e.target.value }))} className={inputClass} rows={2} /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className={labelClass}>月収（円）</label><input type="number" step="1" min="0" value={editDetail.monthly_income} onChange={(e) => setEditDetail((d) => ({ ...d, monthly_income: e.target.value }))} className={inputClass} /></div>
-                  <div><label className={labelClass}>飲み代予算（円/月）</label><input type="number" step="1" min="0" value={editDetail.monthly_drinking_budget} onChange={(e) => setEditDetail((d) => ({ ...d, monthly_drinking_budget: e.target.value }))} className={inputClass} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className={labelClass}>居住</label><select value={editDetail.residence_type} onChange={(e) => setEditDetail((d) => ({ ...d, residence_type: e.target.value }))} className={inputClass}><option value="Own">持家</option><option value="Rent">賃貸</option><option value="Other">その他</option></select></div>
-                  <div><label className={labelClass}>最寄り駅</label><input type="text" value={editDetail.nearest_station} onChange={(e) => setEditDetail((d) => ({ ...d, nearest_station: e.target.value }))} className={inputClass} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className={labelClass}>婚姻状況</label><select value={editDetail.marital_status} onChange={(e) => setEditDetail((d) => ({ ...d, marital_status: e.target.value }))} className={inputClass}><option value="Single">独身</option><option value="Married">既婚</option><option value="Divorced">離婚</option><option value="Widowed">死別</option></select></div>
-                  <div><label className={labelClass}>お子様</label><input type="text" value={editDetail.children_info} onChange={(e) => setEditDetail((d) => ({ ...d, children_info: e.target.value }))} className={inputClass} placeholder="なし など" /></div>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editDetail.has_lover} onChange={(e) => setEditDetail((d) => ({ ...d, has_lover: e.target.checked }))} className="rounded border-gray-300 text-sakura-400 focus:ring-sakura-300" /><span className="text-sm text-gray-700">恋人がいる</span></label>
-              </section>
-              <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4 space-y-3">
-                <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">嗜好</h3>
-                <div><label className={labelClass}>お酒の強さ</label><select value={editPreference.alcohol_strength} onChange={(e) => setEditPreference((p) => ({ ...p, alcohol_strength: e.target.value }))} className={inputClass}><option value="Weak">弱い</option><option value="Medium">普通</option><option value="Strong">強い</option></select></div>
-                <div><label className={labelClass}>好きな食べ物</label><textarea value={editPreference.favorite_food} onChange={(e) => setEditPreference((p) => ({ ...p, favorite_food: e.target.value }))} className={inputClass} rows={2} /></div>
-                <div><label className={labelClass}>苦手な食べ物</label><textarea value={editPreference.dislike_food} onChange={(e) => setEditPreference((p) => ({ ...p, dislike_food: e.target.value }))} className={inputClass} rows={2} /></div>
-                <div><label className={labelClass}>趣味</label><textarea value={editPreference.hobby} onChange={(e) => setEditPreference((p) => ({ ...p, hobby: e.target.value }))} className={inputClass} rows={2} /></div>
-                <div><label className={labelClass}>好きなブランド</label><input type="text" value={editPreference.favorite_brand} onChange={(e) => setEditPreference((p) => ({ ...p, favorite_brand: e.target.value }))} className={inputClass} /></div>
-              </section>
+              </Section>
               <div className="flex gap-2">
-                <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-sakura-400 text-white text-sm font-medium hover:bg-sakura-500 disabled:opacity-60">{saving ? '保存中…' : '保存'}</button>
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-sm" onClick={() => setMode('view')}>キャンセル</button>
+                <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>保存</Button>
+                <Button type="button" variant="outline" onClick={() => setMode('view')}>キャンセル</Button>
               </div>
             </form>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

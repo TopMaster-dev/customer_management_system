@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { UsersRound, AlertCircle, Wallet } from 'lucide-react';
 import { API } from '../config';
 import { formatPrice } from '../utils/formatPrice';
 import type { CastOverviewRow, StoreCastOverviewResponse } from '../types/storeCastOverview';
-
-const thClass = 'text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2 px-3';
-const tdClass = 'py-2 px-3 text-sm text-gray-800 align-top';
+import { Badge, Card, PageContainer, PageHeader } from '../components/ui';
 
 function targetTypeLabel(t: string) {
   return t === 'Daily' ? '日次' : t === 'Monthly' ? '月次' : t;
+}
+
+function pctTone(pct: number | null | undefined): 'neutral' | 'success' | 'warning' | 'danger' {
+  if (pct == null) return 'neutral';
+  if (pct >= 100) return 'success';
+  if (pct >= 70) return 'warning';
+  return 'danger';
 }
 
 export default function StoreCastOverview() {
@@ -34,89 +40,119 @@ export default function StoreCastOverview() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">キャスト状況一覧</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          担当店舗のキャストについて、売上目標の達成状況と給与（時給・歩合）を一覧します。
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="キャスト状況一覧"
+        description="担当店舗のキャストについて、売上目標の達成状況と給与（時給・歩合）を一覧します。"
+        icon={<UsersRound className="h-5 w-5" strokeWidth={2} />}
+      />
 
-      {loading && <p className="text-sm text-gray-500">読み込み中…</p>}
       {error && (
-        <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading && (
+        <Card><p className="text-sm text-ink-soft text-center">読み込み中…</p></Card>
       )}
 
       {!loading && !error && casts.length === 0 && (
-        <p className="text-sm text-gray-500">表示するキャストがありません。</p>
+        <Card><p className="text-sm text-ink-soft text-center">表示するキャストがありません。</p></Card>
       )}
 
       {!loading && !error && casts.length > 0 && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {casts.map((c) => (
-            <section
-              key={c.staff_id}
-              className="rounded-xl border border-gray-100 bg-white/90 shadow-soft overflow-hidden"
-            >
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/80 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <h2 className="text-sm font-semibold text-gray-900">{c.email}</h2>
-                {c.username ? <span className="text-xs text-gray-500">({c.username})</span> : null}
-                <span className="text-xs text-gray-500">{c.store_name}</span>
+            <Card key={c.staff_id} padded={false} className="overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-slate-200 bg-gradient-to-br from-brand-50/40 to-indigo-50/30 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700 text-xs font-semibold">
+                  {c.email.slice(0, 1).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-semibold text-ink truncate">
+                    {c.email}
+                    {c.username && <span className="ml-2 text-xs font-normal text-ink-soft">({c.username})</span>}
+                  </h2>
+                  <p className="text-xs text-ink-soft">{c.store_name}</p>
+                </div>
               </div>
-              <div className="p-4 overflow-x-auto">
-                <table className="min-w-[320px] w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className={thClass}>時給</th>
-                      <th className={thClass}>今月歩合</th>
-                      <th className={thClass}>先月歩合</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className={tdClass}>{formatPrice(c.hourly_wage)}円</td>
-                      <td className={tdClass}>{formatPrice(c.current_month_commission)}円</td>
-                      <td className={tdClass}>{formatPrice(c.last_month_commission)}円</td>
-                    </tr>
-                  </tbody>
-                </table>
 
-                <h3 className="mt-4 mb-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  目標達成（来店記録の利用額合計）
-                </h3>
-                {c.targets.length === 0 ? (
-                  <p className="text-sm text-gray-400">登録された目標がありません。</p>
-                ) : (
-                  <table className="min-w-[480px] w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className={thClass}>種別</th>
-                        <th className={thClass}>対象日</th>
-                        <th className={thClass}>目標</th>
-                        <th className={thClass}>達成額</th>
-                        <th className={thClass}>達成率</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {c.targets.map((t) => (
-                        <tr key={t.id} className="border-b border-gray-50 last:border-0">
-                          <td className={tdClass}>{targetTypeLabel(t.target_type)}</td>
-                          <td className={tdClass}>{t.target_date}</td>
-                          <td className={tdClass}>{formatPrice(t.target_amount)}円</td>
-                          <td className={tdClass}>{formatPrice(t.achieved_amount)}円</td>
-                          <td className={tdClass}>
-                            {t.achievement_percent == null ? '—' : `${t.achievement_percent}%`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+              <div className="p-5 space-y-5">
+                <div>
+                  <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-ink-soft inline-flex items-center gap-1.5">
+                    <Wallet className="h-3.5 w-3.5" />
+                    給与
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <StatTile label="時給" value={`${formatPrice(c.hourly_wage)} 円`} />
+                    <StatTile label="今月歩合" value={`${formatPrice(c.current_month_commission)} 円`} />
+                    <StatTile label="先月歩合" value={`${formatPrice(c.last_month_commission)} 円`} />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-ink-soft">
+                    目標達成（来店記録の利用額合計）
+                  </h3>
+                  {c.targets.length === 0 ? (
+                    <p className="text-sm text-ink-soft">登録された目標がありません。</p>
+                  ) : (
+                    <div className="overflow-x-auto -mx-5">
+                      <table className="w-full min-w-[520px] text-sm">
+                        <thead>
+                          <tr className="bg-slate-50/60 border-y border-slate-200">
+                            <Th>種別</Th>
+                            <Th>対象日</Th>
+                            <Th className="text-right">目標</Th>
+                            <Th className="text-right">達成額</Th>
+                            <Th className="text-right">達成率</Th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {c.targets.map((t) => (
+                            <tr key={t.id} className="border-b border-slate-100 last:border-0">
+                              <Td>
+                                <Badge tone={t.target_type === 'Daily' ? 'info' : 'brand'}>{targetTypeLabel(t.target_type)}</Badge>
+                              </Td>
+                              <Td className="num-tabular text-ink-muted">{t.target_date}</Td>
+                              <Td className="num-tabular text-right text-ink">{formatPrice(t.target_amount)} 円</Td>
+                              <Td className="num-tabular text-right text-ink">{formatPrice(t.achieved_amount)} 円</Td>
+                              <Td className="text-right">
+                                {t.achievement_percent == null ? (
+                                  <span className="text-ink-faint">—</span>
+                                ) : (
+                                  <Badge tone={pctTone(t.achievement_percent)}>{t.achievement_percent}%</Badge>
+                                )}
+                              </Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
-            </section>
+            </Card>
           ))}
         </div>
       )}
+    </PageContainer>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+      <p className="text-xs font-medium text-ink-soft">{label}</p>
+      <p className="mt-1.5 text-lg font-semibold text-ink num-tabular">{value}</p>
     </div>
   );
+}
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <th className={`px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap text-left ${className || ''}`}>{children}</th>;
+}
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-5 py-3 align-top ${className || ''}`}>{children}</td>;
 }

@@ -1,12 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Settings2, Save, RefreshCw, AlertCircle, CheckCircle2, Calculator } from 'lucide-react';
 import { API } from '../config';
 import { formatPrice } from '../utils/formatPrice';
 import type { HostSalaryPreview, HostSalarySetting, HostRoundingMode } from '../types/hostSalarySettings';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sakura-300 focus:ring-1 focus:ring-sakura-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
+import {
+  Button,
+  Card,
+  Input,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 function monthValueNow() {
   const d = new Date();
@@ -55,7 +60,7 @@ export default function HostSalarySettings() {
         setError(
           err?.response?.status === 403
             ? 'この画面はマネージャー（ホストクラブ店舗）のみ利用できます。'
-            : '設定の取得に失敗しました。'
+            : '設定の取得に失敗しました。',
         );
       })
       .finally(() => setLoading(false));
@@ -86,8 +91,7 @@ export default function HostSalarySettings() {
   const multiplier = useMemo(() => {
     const t = Number(taxRate);
     const s = Number(serviceRate);
-    const m = 1 + (Number.isFinite(t) ? t : 0) + (Number.isFinite(s) ? s : 0);
-    return m;
+    return 1 + (Number.isFinite(t) ? t : 0) + (Number.isFinite(s) ? s : 0);
   }, [taxRate, serviceRate]);
 
   const save = async (e: React.FormEvent) => {
@@ -105,130 +109,107 @@ export default function HostSalarySettings() {
       setSetting(res.data);
       setSuccess('保存しました。');
       fetchPreview();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSuccess(null);
-      setError(err?.response?.status === 403 ? '権限がありません。' : '保存に失敗しました。');
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(status === 403 ? '権限がありません。' : '保存に失敗しました。');
     }
     setSaving(false);
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">給与設定（ホストクラブ）</h1>
-        <p className="mt-1 text-sm text-gray-500">小計・総売上の計算に使う税率/サービス料率などを設定します。</p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="給与設定（ホストクラブ）"
+        description="小計・総売上の計算に使う税率/サービス料率などを設定します。"
+        icon={<Settings2 className="h-5 w-5" strokeWidth={2} />}
+      />
 
-      {loading && <p className="text-sm text-gray-500">読み込み中…</p>}
       {error && (
-        <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
       )}
       {success && (
-        <div className="mb-4 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-800">
-          {success}
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{success}</span>
         </div>
       )}
+
+      {loading && <Card><p className="text-sm text-ink-soft text-center">読み込み中…</p></Card>}
 
       {!loading && setting && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <section className="rounded-xl border border-gray-100 bg-white/90 shadow-soft p-5">
-            <h2 className="text-sm font-semibold text-gray-900">計算設定</h2>
-            <form className="mt-4 space-y-4" onSubmit={save}>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/40">
+              <h2 className="text-sm font-semibold text-ink inline-flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-brand-600" /> 計算設定
+              </h2>
+            </div>
+            <form onSubmit={save} className="p-5 space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className={labelClass}>
-                  税率（例: 0.10）
-                  <input value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className={inputClass} inputMode="decimal" />
-                </label>
-                <label className={labelClass}>
-                  サービス料率（例: 0.20）
-                  <input value={serviceRate} onChange={(e) => setServiceRate(e.target.value)} className={inputClass} inputMode="decimal" />
-                </label>
+                <Input label="税率（例: 0.10）" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} inputMode="decimal" />
+                <Input label="サービス料率（例: 0.20）" value={serviceRate} onChange={(e) => setServiceRate(e.target.value)} inputMode="decimal" />
               </div>
-
-              <label className={labelClass}>
-                端数処理（円）
-                <select value={roundingMode} onChange={(e) => setRoundingMode(e.target.value as HostRoundingMode)} className={inputClass}>
-                  <option value="Round">四捨五入</option>
-                  <option value="Floor">切り捨て</option>
-                  <option value="Ceil">切り上げ</option>
-                </select>
-              </label>
-
-              <div className="rounded-lg bg-gray-50 border border-gray-100 px-4 py-3 text-sm text-gray-700">
-                計算係数（1 + 税率 + サービス料率）: <span className="font-medium">{Number.isFinite(multiplier) ? multiplier.toFixed(4) : '—'}</span>
+              <Select label="端数処理（円）" value={roundingMode} onChange={(e) => setRoundingMode(e.target.value as HostRoundingMode)}>
+                <option value="Round">四捨五入</option>
+                <option value="Floor">切り捨て</option>
+                <option value="Ceil">切り上げ</option>
+              </Select>
+              <div className="rounded-lg border border-brand-100 bg-gradient-to-br from-brand-50 to-indigo-50/40 px-4 py-3 text-sm">
+                <p className="text-xs font-medium text-ink-soft">計算係数（1 + 税率 + サービス料率）</p>
+                <p className="mt-1 text-xl font-semibold text-ink num-tabular">{Number.isFinite(multiplier) ? multiplier.toFixed(4) : '—'}</p>
               </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-lg bg-sakura-500 px-4 py-2 text-sm font-medium text-white hover:bg-sakura-600 disabled:opacity-60"
-              >
-                {saving ? '保存中…' : '保存'}
-              </button>
+              <Button type="submit" loading={saving} fullWidth leftIcon={<Save className="h-4 w-4" />}>保存</Button>
             </form>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-gray-100 bg-white/90 shadow-soft p-5">
-            <div className="flex flex-wrap items-end justify-between gap-3">
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/40 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">当月プレビュー</h2>
-                <p className="mt-1 text-xs text-gray-500">来店記録の利用額合計から、小計/総売上の見込みを計算します。</p>
+                <h2 className="text-sm font-semibold text-ink">当月プレビュー</h2>
+                <p className="mt-0.5 text-xs text-ink-soft">来店記録の利用額合計から、小計/総売上の見込みを計算します。</p>
               </div>
-              <label className="block">
-                <span className="block text-sm font-medium text-gray-700">対象年月</span>
-                <input
-                  type="month"
-                  value={ym}
-                  onChange={(e) => setYm(e.target.value)}
-                  className="mt-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-sakura-300 focus:ring-1 focus:ring-sakura-300"
-                />
-              </label>
+              <input
+                type="month"
+                value={ym}
+                onChange={(e) => setYm(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+              />
             </div>
-
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={fetchPreview}
-                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                {previewLoading ? '計算中…' : '再計算'}
-              </button>
+            <div className="p-5 space-y-4">
+              <Button size="sm" variant="outline" leftIcon={<RefreshCw className="h-3.5 w-3.5" />} onClick={fetchPreview} loading={previewLoading}>
+                再計算
+              </Button>
+              {!previewLoading && preview && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <PreviewTile label="店舗" value={preview.store_name} />
+                  <PreviewTile label="組数（来店件数）" value={`${preview.groups.toLocaleString()} 組`} />
+                  <PreviewTile label="総売上（来店利用額合計）" value={`${formatPrice(preview.total_sales)} 円`} highlight />
+                  <PreviewTile label="小計（推定）" value={`${formatPrice(preview.subtotal_estimated)} 円`} highlight />
+                  <div className="sm:col-span-2">
+                    <PreviewTile label="小計→総売上（推定）" value={`${formatPrice(preview.total_from_subtotal_estimated)} 円`} highlight />
+                  </div>
+                </div>
+              )}
+              {!previewLoading && !preview && (
+                <p className="text-sm text-ink-faint">プレビューを表示できませんでした（来店記録が無い場合は0になります）。</p>
+              )}
             </div>
-
-            {!previewLoading && preview && (
-              <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs text-gray-500">店舗</dt>
-                  <dd className="text-sm font-medium text-gray-900">{preview.store_name}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">組数（来店件数）</dt>
-                  <dd className="text-sm font-medium text-gray-900">{preview.groups.toLocaleString()}組</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">総売上（来店利用額合計）</dt>
-                  <dd className="text-sm font-semibold text-gray-900">{formatPrice(preview.total_sales)}円</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">小計（推定）</dt>
-                  <dd className="text-sm font-semibold text-gray-900">{formatPrice(preview.subtotal_estimated)}円</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-xs text-gray-500">小計→総売上（推定）</dt>
-                  <dd className="text-sm font-medium text-gray-900">
-                    {formatPrice(preview.total_from_subtotal_estimated)}円
-                  </dd>
-                </div>
-              </dl>
-            )}
-
-            {!previewLoading && !preview && (
-              <p className="mt-4 text-sm text-gray-400">プレビューを表示できませんでした（来店記録が無い場合は0になります）。</p>
-            )}
-          </section>
+          </Card>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
+function PreviewTile({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-3 ${highlight ? 'border-brand-100 bg-gradient-to-br from-brand-50/50 to-indigo-50/30' : 'border-slate-200 bg-slate-50/50'}`}>
+      <p className="text-xs font-medium text-ink-soft">{label}</p>
+      <p className={`mt-1 font-semibold num-tabular ${highlight ? 'text-lg text-ink' : 'text-sm text-ink'}`}>{value}</p>
+    </div>
+  );
+}

@@ -3,7 +3,11 @@
     "allow": [
       "PowerShell($env:PGCLIENTENCODING = \"UTF8\"; $env:PYTHONUTF8 = \"1\"; cd \"c:\\\\UserProgram\\\\setting\\\\my project\\\\customer_management_system\\\\backend\"; & \".\\\\venv\\\\Scripts\\\\python.exe\" manage.py migrate 2>&1)",
       "PowerShell($env:PGPASSWORD=\"postgresql123\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\" -U cms_user -d customer_management_db -h localhost -c \"SELECT current_database\\(\\), current_user;\" 2>&1)",
-      "PowerShell($pass = Read-Host -Prompt \"Enter postgres superuser password\" -AsSecureString; $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR\\($pass\\); $plainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto\\($BSTR\\); $env:PGPASSWORD = $plainPass; & \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\" -U postgres -d customer_management_db -h localhost -c \"GRANT CREATE ON SCHEMA public TO cms_user;\" 2>&1)"
+      "PowerShell($pass = Read-Host -Prompt \"Enter postgres superuser password\" -AsSecureString; $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR\\($pass\\); $plainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto\\($BSTR\\); $env:PGPASSWORD = $plainPass; & \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\" -U postgres -d customer_management_db -h localhost -c \"GRANT CREATE ON SCHEMA public TO cms_user;\" 2>&1)",
+      "Bash(npx tsc *)",
+      "Bash(NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit)",
+      "Bash(CI=true NODE_OPTIONS=--max-old-space-size=4096 npx react-scripts build)",
+      "Bash(CI=true NODE_OPTIONS=--max-old-space-size=8192 npx react-scripts build)"
     ]
   }
 }

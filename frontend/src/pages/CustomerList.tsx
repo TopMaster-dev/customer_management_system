@@ -1,69 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import {
+  Users,
+  Plus,
+  Filter,
+  X,
+  Eye,
+  Pencil,
+  FileText,
+  Trash2,
+  Check,
+  Save,
+  AlertCircle,
+  Search,
+} from 'lucide-react';
 import CustomerDetailViewModal from '../components/CustomerDetailViewModal';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 import { formatPrice } from '../utils/formatPrice';
 import type { Customer, Store, CustomerFormData } from '../types/customer';
 import { API } from '../config';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sky-300 focus:ring-1 focus:ring-sky-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
-
-const iconClass = 'w-4 h-4 shrink-0 inline-block align-middle';
-
-const IconView = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-  </svg>
-);
-const IconEdit = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-const IconDetail = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
-const IconDelete = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-const IconCheck = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-);
-const IconClose = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-const IconSave = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-  </svg>
-);
-const IconFilter = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-  </svg>
-);
-const IconClear = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-const IconAdd = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-);
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Modal,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 export default function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -94,7 +60,7 @@ export default function CustomerList() {
 
   const storeName = (id: string) => stores.find((s) => s.id === id)?.name ?? id.slice(0, 8);
 
-  const filteredCustomers = React.useMemo(() => {
+  const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
       const matchName = !filterName.trim() || c.name.toLowerCase().includes(filterName.trim().toLowerCase());
       const matchStore = !filterStore || c.store === filterStore;
@@ -145,7 +111,7 @@ export default function CustomerList() {
       fetchCustomers();
       setEditId(null);
       setEditForm(null);
-    } catch (err: unknown) {
+    } catch {
       setError(ERROR_MESSAGES.update);
     }
     setSaving(false);
@@ -163,117 +129,137 @@ export default function CustomerList() {
     }
   };
 
+  const viewCustomer = viewId ? customers.find((x) => x.id === viewId) : null;
+  const viewCi = (viewCustomer?.contact_info as Record<string, string>) || {};
+  const viewPr = (viewCustomer?.preferences as Record<string, string>) || {};
+
   return (
-    <div className="min-h-screen bg-sky-50/80">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">お客様一覧</h1>
-            <p className="mt-1 text-sm text-gray-500">お客様の閲覧・編集・削除、および詳細情報の確認ができます。</p>
-          </div>
+    <PageContainer>
+      <PageHeader
+        title="お客様一覧"
+        description="お客様の閲覧・編集・削除、および詳細情報の確認ができます。"
+        icon={<Users className="h-5 w-5" strokeWidth={2} />}
+        actions={
           <Link
             to="/customers/register"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 text-white text-sm font-medium h-10 px-4 hover:bg-brand-700 shadow-sm transition-colors"
           >
-            <IconAdd /> 新規登録
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            新規登録
           </Link>
+        }
+      />
+
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {error && (
-          <div className="mt-4 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-            {error}
+      <Card className="mb-4 !p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted">
+            <Filter className="h-4 w-4" strokeWidth={1.75} />
+            絞り込み
+          </span>
+          <div className="relative flex-1 min-w-[160px] max-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-faint" />
+            <input
+              type="text"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              placeholder="名前で検索"
+              className="block w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm placeholder:text-ink-faint focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            />
           </div>
-        )}
+          <select
+            value={filterStore}
+            onChange={(e) => setFilterStore(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+          >
+            <option value="">すべての店舗</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <span className="hidden sm:inline text-xs text-ink-soft">初回来店</span>
+          <input
+            type="date"
+            value={filterFirstVisitFrom}
+            onChange={(e) => setFilterFirstVisitFrom(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            title="初回来店（から）"
+          />
+          <span className="text-xs text-ink-faint">～</span>
+          <input
+            type="date"
+            value={filterFirstVisitTo}
+            onChange={(e) => setFilterFirstVisitTo(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            title="初回来店（まで）"
+          />
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              aria-label="絞り込みをクリア"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-soft hover:bg-slate-100 hover:text-ink transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+              クリア
+            </button>
+          )}
+          <span className="ml-auto text-xs text-ink-soft num-tabular">
+            {filteredCustomers.length}件
+            {customers.length !== filteredCustomers.length && <span className="text-ink-faint"> / 全{customers.length}件</span>}
+          </span>
+        </div>
+      </Card>
 
+      <Card padded={false} className="overflow-hidden">
         {loading ? (
-          <p className="mt-8 text-gray-500">読み込み中…</p>
+          <div className="px-4 py-12 text-center text-sm text-ink-soft">読み込み中…</div>
         ) : (
-          <>
-            <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white/90 px-4 py-3 shadow-soft">
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                <IconFilter /> 絞り込み
-              </span>
-              <input
-                type="text"
-                value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
-                placeholder="名前で検索"
-                className="flex-1 min-w-[140px] max-w-[200px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-sky-300 focus:ring-1 focus:ring-sky-300"
-              />
-              <select
-                value={filterStore}
-                onChange={(e) => setFilterStore(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-sky-300 focus:ring-1 focus:ring-sky-300"
-              >
-                <option value="">すべての店舗</option>
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              <span className="text-sm text-gray-500 hidden sm:inline">初回来店</span>
-              <input
-                type="date"
-                value={filterFirstVisitFrom}
-                onChange={(e) => setFilterFirstVisitFrom(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-sky-300 focus:ring-1 focus:ring-sky-300 min-w-0"
-                title="初回来店（から）"
-              />
-              <span className="text-sm text-gray-400">～</span>
-              <input
-                type="date"
-                value={filterFirstVisitTo}
-                onChange={(e) => setFilterFirstVisitTo(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-sky-300 focus:ring-1 focus:ring-sky-300 min-w-0"
-                title="初回来店（まで）"
-              />
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  title="クリア"
-                  aria-label="絞り込みをクリア"
-                  className="p-1.5 rounded-lg text-sky-600 hover:text-sky-700 hover:bg-sky-50 transition-colors"
-                >
-                  <IconClear />
-                </button>
-              )}
-              <span className="text-sm text-gray-500">
-                {filteredCustomers.length}件{customers.length !== filteredCustomers.length && ` / 全${customers.length}件`}
-              </span>
-            </div>
-            <div className="mt-3 overflow-x-auto rounded-xl border border-gray-100 bg-white/90 shadow-soft">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-max text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/80">
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">名前</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">店舗</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">初回来店</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">累計利用額</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 text-right whitespace-nowrap">操作</th>
+                <tr className="bg-slate-50/80 border-b border-slate-200">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap">名前</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap">店舗</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap">初回来店</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap text-right">累計利用額</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap text-right">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredCustomers.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">{hasActiveFilters ? '条件に一致する登録がありません' : '登録がありません'}</td></tr>
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-ink-soft">
+                      {hasActiveFilters ? '条件に一致する登録がありません' : '登録がありません'}
+                    </td>
+                  </tr>
                 ) : (
                   filteredCustomers.map((c) => (
-                    <tr key={c.id} className="border-b border-gray-50 hover:bg-sky-50/50">
-                      <td className="px-2 sm:px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{c.name}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{storeName(c.store)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{c.first_visit}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatPrice(c.total_spend)} 円</td>
-                      <td className="px-2 sm:px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex flex-wrap justify-end gap-1 sm:gap-2 items-center">
-                          <button type="button" className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 text-xs sm:text-sm" onClick={() => setViewId(c.id)}><IconView />表示</button>
-                          <button type="button" className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs sm:text-sm" onClick={() => openEdit(c)}><IconEdit />編集</button>
-                          <button type="button" className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 text-xs sm:text-sm font-medium" onClick={() => setDetailModalId(c.id)}><IconDetail />詳細</button>
+                    <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-brand-50/30 transition-colors">
+                      <td className="px-4 py-3 font-medium text-ink whitespace-nowrap">{c.name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge tone="neutral">{storeName(c.store)}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-ink-muted whitespace-nowrap num-tabular">{c.first_visit}</td>
+                      <td className="px-4 py-3 text-ink whitespace-nowrap num-tabular text-right">{formatPrice(c.total_spend)} 円</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex flex-wrap justify-end gap-1 items-center">
+                          <IconButton label="表示" onClick={() => setViewId(c.id)} icon={<Eye className="h-3.5 w-3.5" />} />
+                          <IconButton label="編集" onClick={() => openEdit(c)} icon={<Pencil className="h-3.5 w-3.5" />} />
+                          <IconButton label="詳細" tone="brand" onClick={() => setDetailModalId(c.id)} icon={<FileText className="h-3.5 w-3.5" />} />
                           {deleteConfirmId === c.id ? (
                             <>
-                              <button type="button" className="inline-flex items-center gap-1 text-red-600 text-xs sm:text-sm font-medium" onClick={() => handleDelete(c.id)}><IconCheck />削除する</button>
-                              <button type="button" className="inline-flex items-center gap-1 text-gray-500 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(null)}><IconClose />キャンセル</button>
+                              <IconButton label="削除する" tone="danger" onClick={() => handleDelete(c.id)} icon={<Check className="h-3.5 w-3.5" />} />
+                              <IconButton label="キャンセル" onClick={() => setDeleteConfirmId(null)} icon={<X className="h-3.5 w-3.5" />} />
                             </>
                           ) : (
-                            <button type="button" className="inline-flex items-center gap-1 text-red-500 hover:text-red-600 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(c.id)}><IconDelete />削除</button>
+                            <IconButton label="削除" tone="danger-soft" onClick={() => setDeleteConfirmId(c.id)} icon={<Trash2 className="h-3.5 w-3.5" />} />
                           )}
                         </div>
                       </td>
@@ -283,80 +269,130 @@ export default function CustomerList() {
               </tbody>
             </table>
           </div>
+        )}
+      </Card>
+
+      <Modal open={!!viewCustomer} onClose={() => setViewId(null)} title="お客様情報" size="sm">
+        {viewCustomer && (
+          <>
+            <dl className="space-y-3 text-sm">
+              <Row label="名前" value={<span className="font-medium text-ink">{viewCustomer.name}</span>} />
+              <Row label="店舗" value={storeName(viewCustomer.store)} />
+              <Row label="初回来店" value={viewCustomer.first_visit} />
+              <Row label="累計利用額" value={<span className="num-tabular">{formatPrice(viewCustomer.total_spend)} 円</span>} />
+              {(viewCi.line_id || viewCi.instagram || viewCi.phone) && (
+                <Row label="連絡先" value={`LINE: ${viewCi.line_id || '—'} / IG: ${viewCi.instagram || '—'} / TEL: ${viewCi.phone || '—'}`} />
+              )}
+              {(viewPr.cigarette_brand || viewPr.visit_days) && (
+                <Row label="嗜好" value={`タバコ: ${viewPr.cigarette_brand || '—'} / 来店希望: ${viewPr.visit_days || '—'}`} />
+              )}
+            </dl>
+            <div className="mt-5 flex gap-2">
+              <Button size="sm" leftIcon={<Pencil className="h-3.5 w-3.5" />} onClick={() => { setViewId(null); openEdit(viewCustomer); }}>
+                編集
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setViewId(null)}>閉じる</Button>
+            </div>
           </>
         )}
+      </Modal>
 
-        {viewId && (() => {
-          const c = customers.find((x) => x.id === viewId);
-          if (!c) return null;
-          const ci = (c.contact_info as Record<string, string>) || {};
-          const pr = (c.preferences as Record<string, string>) || {};
-          return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setViewId(null)}>
-              <div className="w-full max-w-md rounded-2xl bg-white shadow-soft border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">お客様情報</h2>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div><dt className="text-gray-500">名前</dt><dd className="font-medium">{c.name}</dd></div>
-                  <div><dt className="text-gray-500">店舗</dt><dd>{storeName(c.store)}</dd></div>
-                  <div><dt className="text-gray-500">初回来店</dt><dd>{c.first_visit}</dd></div>
-                  <div><dt className="text-gray-500">累計利用額</dt><dd>{formatPrice(c.total_spend)} 円</dd></div>
-                  {(ci.line_id || ci.instagram || ci.phone) && (
-                    <div><dt className="text-gray-500">連絡先</dt><dd>LINE: {ci.line_id || '—'} / IG: {ci.instagram || '—'} / TEL: {ci.phone || '—'}</dd></div>
-                  )}
-                  {(pr.cigarette_brand || pr.visit_days) && (
-                    <div><dt className="text-gray-500">嗜好</dt><dd>タバコ: {pr.cigarette_brand || '—'} / 来店希望: {pr.visit_days || '—'}</dd></div>
-                  )}
-                </dl>
-                <div className="mt-4 flex gap-2">
-                  <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 text-white text-sm hover:bg-sky-600" onClick={() => { setViewId(null); openEdit(c); }}><IconEdit />編集</button>
-                  <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50" onClick={() => setViewId(null)}><IconClose />閉じる</button>
-                </div>
-              </div>
+      <Modal
+        open={!!editId && !!editForm}
+        onClose={() => { setEditId(null); setEditForm(null); }}
+        title="お客様を編集"
+        size="sm"
+      >
+        {editForm && (
+          <form onSubmit={handleSaveEdit} className="space-y-4">
+            <Select
+              label="店舗"
+              value={editForm.store}
+              onChange={(e) => setEditForm((f) => (f ? { ...f, store: e.target.value } : null))}
+              required
+            >
+              {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+            <Input
+              label="名前"
+              type="text"
+              value={editForm.name}
+              onChange={(e) => setEditForm((f) => (f ? { ...f, name: e.target.value } : null))}
+              required
+            />
+            <Input
+              label="初回来店日"
+              type="date"
+              value={editForm.first_visit}
+              onChange={(e) => setEditForm((f) => (f ? { ...f, first_visit: e.target.value } : null))}
+              required
+            />
+            <Input
+              label="累計利用額（円）"
+              type="number"
+              step="1"
+              min="0"
+              value={editForm.total_spend}
+              onChange={(e) => setEditForm((f) => (f ? { ...f, total_spend: e.target.value } : null))}
+            />
+            <div className="flex gap-2 pt-1">
+              <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>保存</Button>
+              <Button type="button" variant="outline" onClick={() => { setEditId(null); setEditForm(null); }}>
+                キャンセル
+              </Button>
             </div>
-          );
-        })()}
-
-        {editId && editForm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => { setEditId(null); setEditForm(null); }}>
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-soft border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">お客様を編集</h2>
-              <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
-                <div>
-                  <label className={labelClass}>店舗</label>
-                  <select value={editForm.store} onChange={(e) => setEditForm((f) => (f ? { ...f, store: e.target.value } : null))} className={inputClass} required>
-                    {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>名前</label>
-                  <input type="text" value={editForm.name} onChange={(e) => setEditForm((f) => (f ? { ...f, name: e.target.value } : null))} className={inputClass} required />
-                </div>
-                <div>
-                  <label className={labelClass}>初回来店日</label>
-                  <input type="date" value={editForm.first_visit} onChange={(e) => setEditForm((f) => (f ? { ...f, first_visit: e.target.value } : null))} className={inputClass} required />
-                </div>
-                <div>
-                  <label className={labelClass}>累計利用額（円）</label>
-                  <input type="number" step="1" min="0" value={editForm.total_spend} onChange={(e) => setEditForm((f) => (f ? { ...f, total_spend: e.target.value } : null))} className={inputClass} />
-                </div>
-                <div className="flex gap-2">
-                  <button type="submit" disabled={saving} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600 disabled:opacity-60">{saving ? '保存中…' : <><IconSave />保存</>}</button>
-                  <button type="button" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50" onClick={() => { setEditId(null); setEditForm(null); }}><IconClose />キャンセル</button>
-                </div>
-              </form>
-            </div>
-          </div>
+          </form>
         )}
+      </Modal>
 
-        {detailModalId && (
-          <CustomerDetailViewModal
-            customerId={detailModalId}
-            onClose={() => setDetailModalId(null)}
-            onSaved={() => fetchCustomers()}
-            onDeleted={() => setDetailModalId(null)}
-          />
-        )}
-      </div>
+      {detailModalId && (
+        <CustomerDetailViewModal
+          customerId={detailModalId}
+          onClose={() => setDetailModalId(null)}
+          onSaved={() => fetchCustomers()}
+          onDeleted={() => setDetailModalId(null)}
+        />
+      )}
+    </PageContainer>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-ink-soft shrink-0">{label}</dt>
+      <dd className="text-right text-ink">{value}</dd>
     </div>
+  );
+}
+
+type IconTone = 'default' | 'brand' | 'danger' | 'danger-soft';
+const toneClasses: Record<IconTone, string> = {
+  default:     'text-ink-muted hover:text-ink hover:bg-slate-100',
+  brand:       'text-brand-600 hover:text-brand-700 hover:bg-brand-50',
+  danger:      'text-rose-600 hover:text-rose-700 hover:bg-rose-50',
+  'danger-soft': 'text-ink-soft hover:text-rose-600 hover:bg-rose-50',
+};
+
+function IconButton({
+  label,
+  onClick,
+  icon,
+  tone = 'default',
+}: {
+  label: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+  tone?: IconTone;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${toneClasses[tone]}`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

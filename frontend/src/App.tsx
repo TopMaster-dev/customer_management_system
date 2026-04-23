@@ -1,5 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  UserCircle,
+  Target,
+  Trophy,
+  Users,
+  UserPlus,
+  ClipboardList,
+  Wallet,
+  Receipt,
+  FileText,
+  PiggyBank,
+  Settings2,
+  Store,
+  ShieldCheck,
+  UsersRound,
+  LineChart,
+  LogOut,
+  Menu as MenuIcon,
+  X as CloseIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import { useAuth, AuthProvider } from './contexts/AuthContext';
 import { USER_ROLE_LABELS } from './types/user';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -24,24 +46,52 @@ import HostSalarySettings from './pages/HostSalarySettings';
 import PersonalLedger from './pages/PersonalLedger';
 import type { AuthUser } from './types/auth';
 
-const NAV_LINKS: { to: string; label: string }[] = [
-  { to: '/', label: 'ホーム' },
-  { to: '/my-page', label: 'マイページ' },
-  { to: '/performance-targets', label: '売上目標' },
-  { to: '/store-targets', label: '店舗目標' },
-  { to: '/store-cast-overview', label: 'キャスト状況' },
-  { to: '/customers', label: 'お客様一覧' },
-  { to: '/customers/register', label: 'お客様登録' },
-  { to: '/visit-records', label: '来店記録' },
-  { to: '/daily-sales', label: '日次売上' },
-  { to: '/daily-expenses', label: '日次経費' },
-  { to: '/daily-reports', label: '日報' },
-  { to: '/personal-ledger', label: '家計簿' },
-  { to: '/host-salary-settings', label: '給与設定(ホスト)' },
-  { to: '/stores', label: '店舗管理' },
-  { to: '/users', label: 'ユーザー管理' },
-  { to: '/staff-members', label: 'スタッフ管理' },
-  { to: '/monthly-rankings', label: '当月ランキング' },
+type NavItem = { to: string; label: string; icon: LucideIcon };
+type NavGroup = { heading: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    heading: 'メイン',
+    items: [
+      { to: '/',          label: 'ホーム',       icon: LayoutDashboard },
+      { to: '/my-page',   label: 'マイページ',   icon: UserCircle },
+    ],
+  },
+  {
+    heading: '売上・目標',
+    items: [
+      { to: '/performance-targets', label: '売上目標',       icon: Target },
+      { to: '/store-targets',       label: '店舗目標',       icon: Trophy },
+      { to: '/store-cast-overview', label: 'キャスト状況',   icon: UsersRound },
+      { to: '/monthly-rankings',    label: '当月ランキング', icon: LineChart },
+    ],
+  },
+  {
+    heading: '顧客・来店',
+    items: [
+      { to: '/customers',          label: 'お客様一覧', icon: Users },
+      { to: '/customers/register', label: 'お客様登録', icon: UserPlus },
+      { to: '/visit-records',      label: '来店記録',   icon: ClipboardList },
+    ],
+  },
+  {
+    heading: '会計',
+    items: [
+      { to: '/daily-sales',    label: '日次売上',  icon: Wallet },
+      { to: '/daily-expenses', label: '日次経費',  icon: Receipt },
+      { to: '/daily-reports',  label: '日報',      icon: FileText },
+      { to: '/personal-ledger', label: '家計簿',   icon: PiggyBank },
+    ],
+  },
+  {
+    heading: '管理',
+    items: [
+      { to: '/host-salary-settings', label: '給与設定(ホスト)', icon: Settings2 },
+      { to: '/stores',               label: '店舗管理',          icon: Store },
+      { to: '/users',                label: 'ユーザー管理',      icon: ShieldCheck },
+      { to: '/staff-members',        label: 'スタッフ管理',      icon: UsersRound },
+    ],
+  },
 ];
 
 function SidebarLayout({ children, user }: { children: React.ReactNode; user: AuthUser }) {
@@ -53,83 +103,107 @@ function SidebarLayout({ children, user }: { children: React.ReactNode; user: Au
     setMobileOpen(false);
   }, [location.pathname]);
 
-  const navLinks = NAV_LINKS.filter(({ to }) => isAllowed(to.replace(/\/$/, '') || '/'));
+  const visibleGroups = useMemo(
+    () =>
+      NAV_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter(({ to }) => isAllowed(to.replace(/\/$/, '') || '/')),
+      })).filter((group) => group.items.length > 0),
+    [isAllowed],
+  );
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
-      'block rounded-lg px-3 py-2 text-sm transition-colors',
-      isActive ? 'bg-sakura-50 font-medium text-sakura-700' : 'text-gray-700 hover:bg-gray-50 hover:text-sakura-600',
+      'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
+      isActive
+        ? 'bg-brand-50 text-brand-700 font-medium'
+        : 'text-ink-muted hover:bg-slate-100 hover:text-ink',
     ].join(' ');
 
   return (
-    <div className="flex min-h-screen bg-washi">
+    <div className="flex min-h-screen">
       {mobileOpen && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm md:hidden"
           aria-label="メニューを閉じる"
           onClick={() => setMobileOpen(false)}
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[15.5rem] flex-col border-r border-gray-100 bg-white shadow-sm transition-transform duration-200 ease-out md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200/80 bg-white/80 backdrop-blur-xl transition-transform duration-200 ease-out md:static md:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-gray-100 px-3 md:h-[3.75rem]">
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight text-gray-900">
-            顧客管理・売上
-          </span>
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-slate-200 px-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
+            <Store className="h-[18px] w-[18px]" strokeWidth={2.25} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-ink leading-tight">顧客管理</p>
+            <p className="truncate text-2xs text-ink-faint leading-tight">Customer Mgmt.</p>
+          </div>
           <button
             type="button"
-            className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 md:hidden"
+            className="shrink-0 rounded-lg p-1.5 text-ink-soft hover:bg-slate-100 hover:text-ink md:hidden"
             aria-label="サイドバーを閉じる"
             onClick={() => setMobileOpen(false)}
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <CloseIcon className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto overscroll-contain px-2 py-3" aria-label="メインメニュー">
-          {navLinks.map(({ to, label }) => (
-            <NavLink key={to} to={to} end={to === '/'} className={navLinkClass}>
-              {label}
-            </NavLink>
+
+        <nav className="scrollbar-thin flex-1 overflow-y-auto overscroll-contain px-3 py-4" aria-label="メインメニュー">
+          {visibleGroups.map((group, idx) => (
+            <div key={group.heading} className={idx > 0 ? 'mt-5' : ''}>
+              <p className="px-2.5 mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-faint">
+                {group.heading}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map(({ to, label, icon: Icon }) => (
+                  <NavLink key={to} to={to} end={to === '/'} className={navLinkClass}>
+                    <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+                    <span className="truncate">{label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
-        <div className="shrink-0 border-t border-gray-100 p-3">
-          <p className="truncate text-xs text-gray-500" title={user.email}>
-            {user.email}
-          </p>
-          <p className="text-xs text-gray-400">{USER_ROLE_LABELS[user.role] ?? user.role}</p>
+
+        <div className="shrink-0 border-t border-slate-200 p-3">
+          <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700 text-xs font-semibold">
+              {user.email.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-ink" title={user.email}>{user.email}</p>
+              <p className="text-2xs text-ink-faint">{USER_ROLE_LABELS[user.role] ?? user.role}</p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={logout}
-            className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-gray-600 hover:bg-red-50 hover:text-red-700"
+            className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-ink-muted hover:bg-rose-50 hover:text-rose-700 transition-colors"
           >
-            <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1" />
-            </svg>
+            <LogOut className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
             ログアウト
           </button>
         </div>
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-gray-100 bg-white/95 px-4 backdrop-blur md:hidden">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/70 px-4 backdrop-blur-xl md:hidden">
           <button
             type="button"
-            className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            className="rounded-lg p-2 text-ink-muted hover:bg-slate-100 hover:text-ink"
             aria-expanded={mobileOpen}
             aria-label="メニューを開く"
             onClick={() => setMobileOpen(true)}
           >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <MenuIcon className="h-5 w-5" />
           </button>
-          <span className="truncate text-sm font-medium text-gray-800">メニュー</span>
+          <span className="truncate text-sm font-semibold text-ink">顧客管理</span>
         </header>
         <main className="min-h-0 flex-1">{children}</main>
       </div>
@@ -152,8 +226,14 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-washi flex items-center justify-center">
-        <p className="text-gray-500">読み込み中…</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center gap-3 text-ink-soft">
+          <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          <p className="text-sm">読み込み中…</p>
+        </div>
       </div>
     );
   }
@@ -183,7 +263,7 @@ function AppContent() {
   );
 
   if (!user) {
-    return <div className="min-h-screen bg-washi">{appRoutes}</div>;
+    return <div className="min-h-screen">{appRoutes}</div>;
   }
 
   return <SidebarLayout user={user}>{appRoutes}</SidebarLayout>;

@@ -1,12 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { PiggyBank, Plus, Trash2, AlertCircle, TrendingUp, TrendingDown, Scale, ListChecks } from 'lucide-react';
 import { API } from '../config';
 import { formatPrice } from '../utils/formatPrice';
 import type { PersonalLedgerEntry, PersonalLedgerFormData, PersonalLedgerSummary } from '../types/personalLedger';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sakura-300 focus:ring-1 focus:ring-sakura-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 function todayISO() {
   const d = new Date();
@@ -54,7 +60,7 @@ export default function PersonalLedger() {
       axios
         .get<PersonalLedgerEntry[]>(`${API}/personal-ledger/`, { params: { entry_date__year: ym.year, entry_date__month: ym.month } })
         .then((r) => r.data)
-        .catch(() => []),
+        .catch(() => [] as PersonalLedgerEntry[]),
       axios
         .get<PersonalLedgerSummary>(`${API}/personal-ledger/summary/`, { params: { year: ym.year, month: ym.month } })
         .then((r) => r.data)
@@ -109,120 +115,166 @@ export default function PersonalLedger() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">家計簿（個人収支）</h1>
-        <p className="mt-1 text-sm text-gray-500">キャスト本人の収入・支出を記録し、月次の合計を確認できます。</p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="家計簿（個人収支）"
+        description="キャスト本人の収入・支出を記録し、月次の合計を確認できます。"
+        icon={<PiggyBank className="h-5 w-5" strokeWidth={2} />}
+      />
 
-      {error && <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="rounded-xl border border-gray-100 bg-white/90 shadow-soft p-5 lg:col-span-1">
-          <h2 className="text-sm font-semibold text-gray-900">収支を追加</h2>
-          <form className="mt-4 space-y-3" onSubmit={submit}>
-            <label className={labelClass}>
-              日付
-              <input type="date" value={form.entry_date} onChange={(e) => setForm((f) => ({ ...f, entry_date: e.target.value }))} className={inputClass} required />
-            </label>
-            <label className={labelClass}>
-              区分
-              <select value={form.entry_type} onChange={(e) => setForm((f) => ({ ...f, entry_type: e.target.value as 'Income' | 'Expense' }))} className={inputClass}>
-                <option value="Income">収入</option>
-                <option value="Expense">支出</option>
-              </select>
-            </label>
-            <label className={labelClass}>
-              金額
-              <input type="number" min={1} step={1} value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className={inputClass} required />
-            </label>
-            <label className={labelClass}>
-              カテゴリ
-              <input type="text" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className={inputClass} placeholder="例: 交通費 / 食費 / 給与" />
-            </label>
-            <label className={labelClass}>
-              メモ
-              <textarea value={form.memo} onChange={(e) => setForm((f) => ({ ...f, memo: e.target.value }))} className={inputClass} rows={3} />
-            </label>
-            <button type="submit" disabled={saving} className="w-full rounded-lg bg-sakura-500 px-4 py-2 text-sm font-medium text-white hover:bg-sakura-600 disabled:opacity-60">
-              {saving ? '保存中…' : '追加'}
-            </button>
-          </form>
-        </section>
-
-        <section className="rounded-xl border border-gray-100 bg-white/90 shadow-soft p-5 lg:col-span-2">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-sm font-semibold text-gray-900">月次集計</h2>
-            <label className="block">
-              <span className="block text-sm font-medium text-gray-700">対象年月</span>
-              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={inputClass} />
-            </label>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <Card padded={false} className="overflow-hidden lg:col-span-1">
+          <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/40">
+            <h2 className="text-sm font-semibold text-ink inline-flex items-center gap-2">
+              <Plus className="h-4 w-4 text-brand-600" /> 収支を追加
+            </h2>
           </div>
+          <form onSubmit={submit} className="p-5 space-y-3">
+            <Input label="日付" type="date" value={form.entry_date} onChange={(e) => setForm((f) => ({ ...f, entry_date: e.target.value }))} required />
+            <Select label="区分" value={form.entry_type} onChange={(e) => setForm((f) => ({ ...f, entry_type: e.target.value as 'Income' | 'Expense' }))}>
+              <option value="Income">収入</option>
+              <option value="Expense">支出</option>
+            </Select>
+            <Input label="金額" type="number" min={1} step={1} value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
+            <Input label="カテゴリ" type="text" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="例: 交通費 / 食費 / 給与" />
+            <div>
+              <label className="block text-sm font-medium text-ink-muted mb-1.5">メモ</label>
+              <textarea
+                value={form.memo}
+                onChange={(e) => setForm((f) => ({ ...f, memo: e.target.value }))}
+                rows={3}
+                className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+              />
+            </div>
+            <Button type="submit" loading={saving} fullWidth leftIcon={<Plus className="h-4 w-4" />}>追加</Button>
+          </form>
+        </Card>
 
-          {loading ? (
-            <p className="mt-4 text-sm text-gray-500">読み込み中…</p>
-          ) : (
-            <>
-              <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
-                <div className="rounded-lg border border-gray-100 p-3">
-                  <dt className="text-xs text-gray-500">収入</dt>
-                  <dd className="text-sm font-semibold text-emerald-700">{formatPrice(summary?.income_total ?? 0)}円</dd>
+        <Card padded={false} className="overflow-hidden lg:col-span-2">
+          <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/40 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="text-sm font-semibold text-ink">月次集計</h2>
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            />
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <p className="text-sm text-ink-soft text-center">読み込み中…</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <SummaryTile
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    label="収入"
+                    value={`${formatPrice(summary?.income_total ?? 0)} 円`}
+                    tone="success"
+                  />
+                  <SummaryTile
+                    icon={<TrendingDown className="h-4 w-4" />}
+                    label="支出"
+                    value={`${formatPrice(summary?.expense_total ?? 0)} 円`}
+                    tone="danger"
+                  />
+                  <SummaryTile
+                    icon={<Scale className="h-4 w-4" />}
+                    label="差額"
+                    value={`${formatPrice(summary?.balance ?? 0)} 円`}
+                    tone="brand"
+                  />
+                  <SummaryTile
+                    icon={<ListChecks className="h-4 w-4" />}
+                    label="件数"
+                    value={`${(summary?.entry_count ?? 0).toLocaleString()} 件`}
+                    tone="neutral"
+                  />
                 </div>
-                <div className="rounded-lg border border-gray-100 p-3">
-                  <dt className="text-xs text-gray-500">支出</dt>
-                  <dd className="text-sm font-semibold text-red-700">{formatPrice(summary?.expense_total ?? 0)}円</dd>
-                </div>
-                <div className="rounded-lg border border-gray-100 p-3">
-                  <dt className="text-xs text-gray-500">差額</dt>
-                  <dd className="text-sm font-semibold text-gray-900">{formatPrice(summary?.balance ?? 0)}円</dd>
-                </div>
-                <div className="rounded-lg border border-gray-100 p-3">
-                  <dt className="text-xs text-gray-500">件数</dt>
-                  <dd className="text-sm font-semibold text-gray-900">{(summary?.entry_count ?? 0).toLocaleString()}件</dd>
-                </div>
-              </dl>
 
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-[560px] w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <th className="py-2 px-2">日付</th>
-                      <th className="py-2 px-2">区分</th>
-                      <th className="py-2 px-2">カテゴリ</th>
-                      <th className="py-2 px-2">金額</th>
-                      <th className="py-2 px-2">メモ</th>
-                      <th className="py-2 px-2">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-6 text-center text-gray-400">この月の記録はありません。</td>
+                <div className="mt-5 overflow-x-auto -mx-5">
+                  <table className="w-full min-w-[560px] text-sm">
+                    <thead>
+                      <tr className="bg-slate-50/40 border-y border-slate-200">
+                        <Th>日付</Th>
+                        <Th>区分</Th>
+                        <Th>カテゴリ</Th>
+                        <Th className="text-right">金額</Th>
+                        <Th>メモ</Th>
+                        <Th className="text-right">操作</Th>
                       </tr>
-                    ) : (
-                      entries.map((e) => (
-                        <tr key={e.id} className="border-b border-gray-50 last:border-0">
-                          <td className="py-2 px-2 text-gray-700">{e.entry_date}</td>
-                          <td className={`py-2 px-2 ${e.entry_type === 'Income' ? 'text-emerald-700' : 'text-red-700'}`}>{e.entry_type === 'Income' ? '収入' : '支出'}</td>
-                          <td className="py-2 px-2 text-gray-700">{e.category || '—'}</td>
-                          <td className="py-2 px-2 text-gray-900">{formatPrice(Number(e.amount || 0))}円</td>
-                          <td className="py-2 px-2 text-gray-600">{e.memo || '—'}</td>
-                          <td className="py-2 px-2">
-                            <button type="button" onClick={() => remove(e.id)} className="rounded border border-gray-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
-                              削除
-                            </button>
-                          </td>
+                    </thead>
+                    <tbody>
+                      {entries.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-5 py-12 text-center text-sm text-ink-soft">この月の記録はありません。</td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </section>
+                      ) : (
+                        entries.map((e) => (
+                          <tr key={e.id} className="border-b border-slate-100 last:border-0 hover:bg-brand-50/20 transition-colors">
+                            <Td className="num-tabular text-ink-muted">{e.entry_date}</Td>
+                            <Td>
+                              <Badge tone={e.entry_type === 'Income' ? 'success' : 'danger'}>
+                                {e.entry_type === 'Income' ? '収入' : '支出'}
+                              </Badge>
+                            </Td>
+                            <Td className="text-ink-muted">{e.category || '—'}</Td>
+                            <Td className="num-tabular text-right font-medium text-ink">{formatPrice(Number(e.amount || 0))} 円</Td>
+                            <Td className="text-ink-soft max-w-[240px] truncate" title={e.memo || undefined}>{e.memo || '—'}</Td>
+                            <Td className="text-right">
+                              <button
+                                type="button"
+                                onClick={() => remove(e.id)}
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-ink-soft hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                削除
+                              </button>
+                            </Td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
       </div>
+    </PageContainer>
+  );
+}
+
+const toneStyles: Record<'success' | 'danger' | 'brand' | 'neutral', string> = {
+  success: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  danger: 'bg-rose-50 text-rose-700 border-rose-100',
+  brand: 'bg-brand-50 text-brand-700 border-brand-100',
+  neutral: 'bg-slate-50 text-ink border-slate-200',
+};
+
+function SummaryTile({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: 'success' | 'danger' | 'brand' | 'neutral' }) {
+  return (
+    <div className={`rounded-xl border p-3 ${toneStyles[tone]}`}>
+      <div className="flex items-center gap-1.5">
+        {icon}
+        <p className="text-xs font-medium">{label}</p>
+      </div>
+      <p className="mt-1.5 text-base sm:text-lg font-semibold num-tabular">{value}</p>
     </div>
   );
 }
 
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <th className={`px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap text-left ${className || ''}`}>{children}</th>;
+}
+function Td({ children, className, ...rest }: React.TdHTMLAttributes<HTMLTableCellElement> & { children: React.ReactNode }) {
+  return <td className={`px-5 py-3 ${className || ''}`} {...rest}>{children}</td>;
+}

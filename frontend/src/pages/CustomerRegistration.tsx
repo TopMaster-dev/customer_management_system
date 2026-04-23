@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { UserPlus, CheckCircle2, AlertCircle, ArrowRight, FileText } from 'lucide-react';
 import CustomerDetailModal from '../components/CustomerDetailModal';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 import type { Store, CustomerFormData } from '../types/customer';
 import { API } from '../config';
+import { Button, Card, Input, PageContainer, PageHeader, Select } from '../components/ui';
 
 const initialForm: CustomerFormData = {
   store: '',
@@ -14,9 +16,14 @@ const initialForm: CustomerFormData = {
   total_spend: '0',
 };
 
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-gray-800 shadow-sm focus:border-sakura-300 focus:ring-1 focus:ring-sakura-300 sm:text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
+function Fieldset({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
+      <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-ink-soft">{title}</legend>
+      <div className="space-y-4 mt-1">{children}</div>
+    </fieldset>
+  );
+}
 
 export default function CustomerRegistration() {
   const [stores, setStores] = useState<Store[]>([]);
@@ -51,184 +58,143 @@ export default function CustomerRegistration() {
       const res = await axios.post(`${API}/customers/`, payload);
       setCreatedCustomerId(res.data.id);
       setSuccess(true);
-    } catch (err: unknown) {
+    } catch {
       setError(ERROR_MESSAGES.create);
     }
     setSubmitting(false);
   };
 
-  const openDetailModal = () => {
-    if (createdCustomerId) setShowDetailModal(true);
-  };
-
   return (
-    <div className="min-h-screen bg-sakura-50/50">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">
-          お客様登録
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          基本情報を入力後、必要に応じて詳細を登録できます。
-        </p>
+    <PageContainer className="max-w-3xl">
+      <PageHeader
+        title="お客様登録"
+        description="基本情報を入力後、必要に応じて詳細を登録できます。"
+        icon={<UserPlus className="h-5 w-5" strokeWidth={2} />}
+      />
 
-        <form onSubmit={handleSubmit} className="mt-8 sm:mt-10">
-          {error && (
-            <div className="mb-6 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="mb-6 rounded-lg bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-800">
-              登録が完了しました。
-            </div>
-          )}
-
-          <div className="rounded-2xl bg-white/80 backdrop-blur shadow-soft border border-white/60 p-6 sm:p-8 space-y-6">
-            <div>
-              <label className={labelClass}>店舗 *</label>
-              <select
-                value={form.store}
-                onChange={(e) => setForm((f) => ({ ...f, store: e.target.value }))}
-                required
-                className={inputClass}
-              >
-                <option value="">選択してください</option>
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className={labelClass}>お名前 *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                required
-                className={inputClass}
-                placeholder="山田 花子"
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>初回来店日 *</label>
-              <input
-                type="date"
-                value={form.first_visit}
-                onChange={(e) => setForm((f) => ({ ...f, first_visit: e.target.value }))}
-                required
-                className={inputClass}
-              />
-            </div>
-
-            <fieldset className="rounded-xl border border-gray-100 bg-white/50 p-4 sm:p-5 space-y-4">
-              <legend className="text-sm font-medium text-gray-700 px-1">連絡先</legend>
-              <div>
-                <label className={labelClass}>LINE ID</label>
-                <input
-                  type="text"
-                  value={form.contact_info?.line_id || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, contact_info: { ...f.contact_info, line_id: e.target.value } }))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Instagram</label>
-                <input
-                  type="text"
-                  value={form.contact_info?.instagram || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, contact_info: { ...f.contact_info, instagram: e.target.value } }))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>電話番号</label>
-                <input
-                  type="text"
-                  value={form.contact_info?.phone || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, contact_info: { ...f.contact_info, phone: e.target.value } }))}
-                  className={inputClass}
-                />
-              </div>
-            </fieldset>
-
-            <fieldset className="rounded-xl border border-gray-100 bg-white/50 p-4 sm:p-5 space-y-4">
-              <legend className="text-sm font-medium text-gray-700 px-1">嗜好（任意）</legend>
-              <div>
-                <label className={labelClass}>タバコの銘柄</label>
-                <input
-                  type="text"
-                  value={form.preferences?.cigarette_brand || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, preferences: { ...f.preferences, cigarette_brand: e.target.value } }))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>喫煙タイプ</label>
-                <input
-                  type="text"
-                  value={form.preferences?.smoking_type || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, preferences: { ...f.preferences, smoking_type: e.target.value } }))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>来店希望曜日</label>
-                <input
-                  type="text"
-                  value={form.preferences?.visit_days || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, preferences: { ...f.preferences, visit_days: e.target.value } }))}
-                  className={inputClass}
-                  placeholder="土日など"
-                />
-              </div>
-            </fieldset>
-
-            <div>
-              <label className={labelClass}>累計利用額（円）</label>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                value={form.total_spend}
-                onChange={(e) => setForm((f) => ({ ...f, total_spend: e.target.value }))}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-sakura-400 text-white text-sm font-medium shadow-soft hover:bg-sakura-500 focus:ring-2 focus:ring-sakura-300 focus:ring-offset-2 disabled:opacity-60 transition-colors"
-              >
-                {submitting ? '登録中…' : '登録する'}
-              </button>
-            </div>
+      <form onSubmit={handleSubmit}>
+        {error && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
           </div>
-        </form>
-
-        {success && createdCustomerId && (
-          <div className="mt-8 pt-8 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={openDetailModal}
-              className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 rounded-xl border-2 border-sakura-300 bg-white text-sakura-500 text-sm font-medium hover:bg-sakura-50 transition-colors"
-            >
-              詳細情報を入力する
-            </button>
+        )}
+        {success && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm text-emerald-700">
+            <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>登録が完了しました。</span>
           </div>
         )}
 
-        {showDetailModal && createdCustomerId && (
-          <CustomerDetailModal
-            customerId={createdCustomerId}
-            onClose={() => setShowDetailModal(false)}
-            onSaved={() => setSuccess(true)}
+        <Card className="space-y-5">
+          <Select
+            label="店舗"
+            value={form.store}
+            onChange={(e) => setForm((f) => ({ ...f, store: e.target.value }))}
+            required
+          >
+            <option value="">選択してください</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </Select>
+
+          <Input
+            label="お名前"
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            required
+            placeholder="山田 花子"
           />
-        )}
-      </div>
-    </div>
+
+          <Input
+            label="初回来店日"
+            type="date"
+            value={form.first_visit}
+            onChange={(e) => setForm((f) => ({ ...f, first_visit: e.target.value }))}
+            required
+          />
+
+          <Fieldset title="連絡先">
+            <Input
+              label="LINE ID"
+              type="text"
+              value={form.contact_info?.line_id || ''}
+              onChange={(e) => setForm((f) => ({ ...f, contact_info: { ...f.contact_info, line_id: e.target.value } }))}
+            />
+            <Input
+              label="Instagram"
+              type="text"
+              value={form.contact_info?.instagram || ''}
+              onChange={(e) => setForm((f) => ({ ...f, contact_info: { ...f.contact_info, instagram: e.target.value } }))}
+            />
+            <Input
+              label="電話番号"
+              type="text"
+              value={form.contact_info?.phone || ''}
+              onChange={(e) => setForm((f) => ({ ...f, contact_info: { ...f.contact_info, phone: e.target.value } }))}
+            />
+          </Fieldset>
+
+          <Fieldset title="嗜好(任意)">
+            <Input
+              label="タバコの銘柄"
+              type="text"
+              value={form.preferences?.cigarette_brand || ''}
+              onChange={(e) => setForm((f) => ({ ...f, preferences: { ...f.preferences, cigarette_brand: e.target.value } }))}
+            />
+            <Input
+              label="喫煙タイプ"
+              type="text"
+              value={form.preferences?.smoking_type || ''}
+              onChange={(e) => setForm((f) => ({ ...f, preferences: { ...f.preferences, smoking_type: e.target.value } }))}
+            />
+            <Input
+              label="来店希望曜日"
+              type="text"
+              value={form.preferences?.visit_days || ''}
+              onChange={(e) => setForm((f) => ({ ...f, preferences: { ...f.preferences, visit_days: e.target.value } }))}
+              placeholder="土日など"
+            />
+          </Fieldset>
+
+          <Input
+            label="累計利用額（円）"
+            type="number"
+            step="1"
+            min="0"
+            value={form.total_spend}
+            onChange={(e) => setForm((f) => ({ ...f, total_spend: e.target.value }))}
+          />
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Button type="submit" loading={submitting} size="lg" leftIcon={<UserPlus className="h-4 w-4" />}>
+              登録する
+            </Button>
+            {success && createdCustomerId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => setShowDetailModal(true)}
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+                leftIcon={<FileText className="h-4 w-4" />}
+              >
+                詳細情報を入力する
+              </Button>
+            )}
+          </div>
+        </Card>
+      </form>
+
+      {showDetailModal && createdCustomerId && (
+        <CustomerDetailModal
+          customerId={createdCustomerId}
+          onClose={() => setShowDetailModal(false)}
+          onSaved={() => setSuccess(true)}
+        />
+      )}
+    </PageContainer>
   );
 }

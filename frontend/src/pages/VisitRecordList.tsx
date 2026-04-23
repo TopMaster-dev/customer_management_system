@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import {
+  ClipboardList,
+  Plus,
+  Eye,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Save,
+  AlertCircle,
+  CreditCard,
+} from 'lucide-react';
 import type {
   VisitRecord,
   VisitRecordFormData,
@@ -12,49 +24,16 @@ import type { Customer } from '../types/customer';
 import type { User } from '../types/user';
 import { PAYMENT_METHODS } from '../types/visitRecord';
 import { API } from '../config';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sky-300 focus:ring-1 focus:ring-sky-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
-
-const iconClass = 'w-4 h-4 shrink-0';
-
-const IconView = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-  </svg>
-);
-const IconEdit = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-const IconDelete = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-const IconCheck = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-);
-const IconClose = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-const IconSave = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-  </svg>
-);
-const IconAdd = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-);
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Modal,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 function nowLocalISO() {
   const d = new Date();
@@ -110,10 +89,14 @@ function formatDateTime(s: string) {
 }
 
 function formatDate(s: string) {
-  if (!s) return '—';
-  return s;
+  return s || '—';
 }
 
+function paymentTone(pm: PaymentMethod): 'neutral' | 'brand' | 'info' {
+  if (pm === 'Cash') return 'neutral';
+  if (pm === 'Credit Card') return 'brand';
+  return 'info';
+}
 
 export default function VisitRecordList() {
   const [records, setRecords] = useState<VisitRecord[]>([]);
@@ -179,7 +162,7 @@ export default function VisitRecordList() {
       fetchRecords();
       setCreateOpen(false);
       setCreateForm(null);
-    } catch (err: unknown) {
+    } catch {
       setError(ERROR_MESSAGES.create);
     }
     setSaving(false);
@@ -205,7 +188,7 @@ export default function VisitRecordList() {
       fetchRecords();
       setEditId(null);
       setEditForm(null);
-    } catch (err: unknown) {
+    } catch {
       setError(ERROR_MESSAGES.update);
     }
     setSaving(false);
@@ -229,71 +212,74 @@ export default function VisitRecordList() {
     setError(null);
   };
 
+  const viewRecord = viewId ? records.find((x) => x.id === viewId) : null;
+
   return (
-    <div className="min-h-screen bg-sky-50/80">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">来店記録</h1>
-            <p className="mt-1 text-sm text-gray-500">来店・売上記録の登録・閲覧・編集・削除</p>
-          </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600"
+    <PageContainer>
+      <PageHeader
+        title="来店記録"
+        description="来店・売上記録の登録・閲覧・編集・削除"
+        icon={<ClipboardList className="h-5 w-5" strokeWidth={2} />}
+        actions={
+          <Button
+            leftIcon={<Plus className="h-4 w-4" strokeWidth={2} />}
             onClick={() => { setCreateOpen(true); setError(null); setCreateForm(emptyForm()); }}
           >
-            <IconAdd /> 新規登録
-          </button>
+            新規登録
+          </Button>
+        }
+      />
+
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {error && (
-          <div className="mt-4 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
+      <Card padded={false} className="overflow-hidden">
         {loading ? (
-          <p className="mt-8 text-gray-500">読み込み中…</p>
+          <div className="px-4 py-12 text-center text-sm text-ink-soft">読み込み中…</div>
         ) : (
-          <div className="mt-6 overflow-x-auto rounded-xl border border-gray-100 bg-white/90 shadow-sm">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-max text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/80">
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">お客様</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">来店日</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">利用額</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">支払方法</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">入店</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">退店</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 text-right whitespace-nowrap">操作</th>
+                <tr className="bg-slate-50/80 border-b border-slate-200">
+                  <Th>お客様</Th>
+                  <Th>来店日</Th>
+                  <Th className="text-right">利用額</Th>
+                  <Th>支払方法</Th>
+                  <Th>入店</Th>
+                  <Th>退店</Th>
+                  <Th className="text-right">操作</Th>
                 </tr>
               </thead>
               <tbody>
                 {records.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">記録がありません</td></tr>
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-ink-soft">記録がありません</td>
+                  </tr>
                 ) : (
                   records.map((r) => (
-                    <tr key={r.id} className="border-b border-gray-50 hover:bg-sky-50/50">
-                      <td className="px-2 sm:px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{customerName(r.customer)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(r.visit_date)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatPrice(r.spending)} 円</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{r.payment_method}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatDateTime(r.entry_time)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatDateTime(r.exit_time)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex flex-wrap justify-end gap-1 sm:gap-2 items-center">
-                          <button type="button" className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 text-xs sm:text-sm" onClick={() => setViewId(r.id)}><IconView />表示</button>
-                          <button type="button" className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs sm:text-sm" onClick={() => openEdit(r)}><IconEdit />編集</button>
-                          {deleteConfirmId === r.id ? (
-                            <>
-                              <button type="button" className="inline-flex items-center gap-1 text-red-600 text-xs sm:text-sm font-medium" onClick={() => handleDelete(r.id)}><IconCheck />削除する</button>
-                              <button type="button" className="inline-flex items-center gap-1 text-gray-500 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(null)}><IconClose />キャンセル</button>
-                            </>
-                          ) : (
-                            <button type="button" className="inline-flex items-center gap-1 text-red-500 hover:text-red-600 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(r.id)}><IconDelete />削除</button>
-                          )}
-                        </div>
-                      </td>
+                    <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-brand-50/30 transition-colors">
+                      <Td className="font-medium text-ink">{customerName(r.customer)}</Td>
+                      <Td className="num-tabular text-ink-muted">{formatDate(r.visit_date)}</Td>
+                      <Td className="num-tabular text-right text-ink">{formatPrice(r.spending)} 円</Td>
+                      <Td><Badge tone={paymentTone(r.payment_method)}>{r.payment_method}</Badge></Td>
+                      <Td className="num-tabular text-ink-muted">{formatDateTime(r.entry_time)}</Td>
+                      <Td className="num-tabular text-ink-muted">{formatDateTime(r.exit_time)}</Td>
+                      <Td className="text-right whitespace-nowrap">
+                        <InlineAction onClick={() => setViewId(r.id)} icon={<Eye className="h-3.5 w-3.5" />}>表示</InlineAction>
+                        <InlineAction onClick={() => openEdit(r)} icon={<Pencil className="h-3.5 w-3.5" />}>編集</InlineAction>
+                        {deleteConfirmId === r.id ? (
+                          <>
+                            <InlineAction tone="danger" onClick={() => handleDelete(r.id)} icon={<Check className="h-3.5 w-3.5" />}>削除する</InlineAction>
+                            <InlineAction onClick={() => setDeleteConfirmId(null)} icon={<X className="h-3.5 w-3.5" />}>キャンセル</InlineAction>
+                          </>
+                        ) : (
+                          <InlineAction tone="danger-soft" onClick={() => setDeleteConfirmId(r.id)} icon={<Trash2 className="h-3.5 w-3.5" />}>削除</InlineAction>
+                        )}
+                      </Td>
                     </tr>
                   ))
                 )}
@@ -301,81 +287,80 @@ export default function VisitRecordList() {
             </table>
           </div>
         )}
+      </Card>
 
-        {/* View modal */}
-        {viewId && (() => {
-          const r = records.find((x) => x.id === viewId);
-          if (!r) return null;
-          return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setViewId(null)}>
-              <div className="w-full max-w-lg rounded-2xl bg-white shadow-lg border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">来店記録</h2>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div><dt className="text-gray-500">お客様</dt><dd className="font-medium">{customerName(r.customer)}</dd></div>
-                  <div><dt className="text-gray-500">担当</dt><dd>{castLabel(r.cast)}</dd></div>
-                  <div><dt className="text-gray-500">来店日</dt><dd>{formatDate(r.visit_date)}</dd></div>
-                  <div><dt className="text-gray-500">利用額</dt><dd>{formatPrice(r.spending)} 円</dd></div>
-                  <div><dt className="text-gray-500">支払方法</dt><dd>{r.payment_method}</dd></div>
-                  <div><dt className="text-gray-500">入店</dt><dd>{formatDateTime(r.entry_time)}</dd></div>
-                  <div><dt className="text-gray-500">退店</dt><dd>{formatDateTime(r.exit_time)}</dd></div>
-                  <div><dt className="text-gray-500">同伴</dt><dd>{r.accompanied ? 'はい' : 'いいえ'}</dd></div>
-                  {r.companions && <div><dt className="text-gray-500">同伴者</dt><dd>{r.companions}</dd></div>}
-                  {r.memo && <div><dt className="text-gray-500">メモ</dt><dd className="whitespace-pre-wrap">{r.memo}</dd></div>}
-                  <div><dt className="text-gray-500">未払額</dt><dd>{formatPrice(r.unpaid_amount)} 円</dd></div>
-                  <div><dt className="text-gray-500">受取額</dt><dd>{formatPrice(r.received_amount)} 円</dd></div>
-                  <div><dt className="text-gray-500">未払日</dt><dd>{formatDate(r.unpaid_date ?? '')}</dd></div>
-                  <div><dt className="text-gray-500">領収書</dt><dd>{r.receipt ? 'あり' : 'なし'}</dd></div>
-                </dl>
-                <div className="mt-4 flex gap-2">
-                  <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 text-white text-sm hover:bg-sky-600" onClick={() => { setViewId(null); openEdit(r); }}><IconEdit />編集</button>
-                  <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50" onClick={() => setViewId(null)}><IconClose />閉じる</button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Create modal */}
-        {createOpen && createForm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setCreateOpen(false)}>
-            <div className="w-full max-w-lg rounded-2xl bg-white shadow-lg border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">来店記録を登録</h2>
-              <VisitRecordForm
-                form={createForm}
-                setForm={setCreateForm}
-                customers={customers}
-                staff={staff}
-                users={users}
-                onSubmit={handleCreate}
-                saving={saving}
-                submitLabel="登録"
-                onCancel={() => { setCreateOpen(false); setCreateForm(null); }}
+      <Modal open={!!viewRecord} onClose={() => setViewId(null)} title="来店記録" size="md">
+        {viewRecord && (
+          <>
+            <dl className="space-y-3 text-sm">
+              <Row label="お客様" value={<span className="font-medium text-ink">{customerName(viewRecord.customer)}</span>} />
+              <Row label="担当" value={castLabel(viewRecord.cast)} />
+              <Row label="来店日" value={formatDate(viewRecord.visit_date)} />
+              <Row label="利用額" value={<span className="num-tabular">{formatPrice(viewRecord.spending)} 円</span>} />
+              <Row
+                label="支払方法"
+                value={<Badge tone={paymentTone(viewRecord.payment_method)}><CreditCard className="h-3 w-3 mr-1" />{viewRecord.payment_method}</Badge>}
               />
+              <Row label="入店" value={formatDateTime(viewRecord.entry_time)} />
+              <Row label="退店" value={formatDateTime(viewRecord.exit_time)} />
+              <Row label="同伴" value={viewRecord.accompanied ? 'はい' : 'いいえ'} />
+              {viewRecord.companions && <Row label="同伴者" value={viewRecord.companions} />}
+              {viewRecord.memo && <Row label="メモ" value={<span className="whitespace-pre-wrap">{viewRecord.memo}</span>} />}
+              <Row label="未払額" value={<span className="num-tabular">{formatPrice(viewRecord.unpaid_amount)} 円</span>} />
+              <Row label="受取額" value={<span className="num-tabular">{formatPrice(viewRecord.received_amount)} 円</span>} />
+              <Row label="未払日" value={formatDate(viewRecord.unpaid_date ?? '')} />
+              <Row label="領収書" value={viewRecord.receipt ? 'あり' : 'なし'} />
+            </dl>
+            <div className="mt-5 flex gap-2">
+              <Button size="sm" leftIcon={<Pencil className="h-3.5 w-3.5" />} onClick={() => { setViewId(null); openEdit(viewRecord); }}>編集</Button>
+              <Button size="sm" variant="outline" onClick={() => setViewId(null)}>閉じる</Button>
             </div>
-          </div>
+          </>
         )}
+      </Modal>
 
-        {/* Edit modal */}
-        {editId && editForm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => { setEditId(null); setEditForm(null); }}>
-            <div className="w-full max-w-lg rounded-2xl bg-white shadow-lg border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">来店記録を編集</h2>
-              <VisitRecordForm
-                form={editForm}
-                setForm={setEditForm}
-                customers={customers}
-                staff={staff}
-                users={users}
-                onSubmit={handleUpdate}
-                saving={saving}
-                submitLabel="保存"
-                onCancel={() => { setEditId(null); setEditForm(null); }}
-              />
-            </div>
-          </div>
+      <Modal
+        open={createOpen && !!createForm}
+        onClose={() => { setCreateOpen(false); setCreateForm(null); }}
+        title="来店記録を登録"
+        size="md"
+      >
+        {createForm && (
+          <VisitRecordForm
+            form={createForm}
+            setForm={setCreateForm}
+            customers={customers}
+            staff={staff}
+            users={users}
+            onSubmit={handleCreate}
+            saving={saving}
+            submitLabel="登録"
+            onCancel={() => { setCreateOpen(false); setCreateForm(null); }}
+          />
         )}
-      </div>
-    </div>
+      </Modal>
+
+      <Modal
+        open={!!editId && !!editForm}
+        onClose={() => { setEditId(null); setEditForm(null); }}
+        title="来店記録を編集"
+        size="md"
+      >
+        {editForm && (
+          <VisitRecordForm
+            form={editForm}
+            setForm={setEditForm}
+            customers={customers}
+            staff={staff}
+            users={users}
+            onSubmit={handleUpdate}
+            saving={saving}
+            submitLabel="保存"
+            onCancel={() => { setEditId(null); setEditForm(null); }}
+          />
+        )}
+      </Modal>
+    </PageContainer>
   );
 }
 
@@ -400,87 +385,114 @@ function staffDisplayName(s: StaffMember, users: User[]): string {
 function VisitRecordForm({ form, setForm, customers, staff, users, onSubmit, saving, submitLabel, onCancel }: VisitRecordFormProps) {
   const update = (patch: Partial<VisitRecordFormData>) => setForm((f) => (f ? { ...f, ...patch } : null));
   return (
-    <form onSubmit={onSubmit} className="mt-4 space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
+      <Select label="お客様" value={form.customer} onChange={(e) => update({ customer: e.target.value })} required>
+        <option value="">選択してください</option>
+        {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </Select>
+      <Select label="担当（キャスト）" value={form.cast} onChange={(e) => update({ cast: e.target.value })} required>
+        <option value="">選択してください</option>
+        {staff.map((s) => <option key={s.id} value={s.id}>{staffDisplayName(s, users)}</option>)}
+      </Select>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="来店日" type="date" value={form.visit_date} onChange={(e) => update({ visit_date: e.target.value })} required />
+        <Input label="利用額（円）" type="number" step="1" min="0" value={form.spending} onChange={(e) => update({ spending: e.target.value })} required />
+      </div>
+      <Select label="支払方法" value={form.payment_method} onChange={(e) => update({ payment_method: e.target.value as PaymentMethod })} required>
+        {PAYMENT_METHODS.map((pm) => <option key={pm} value={pm}>{pm}</option>)}
+      </Select>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="入店日時" type="datetime-local" value={form.entry_time} onChange={(e) => update({ entry_time: e.target.value })} />
+        <Input label="退店日時" type="datetime-local" value={form.exit_time} onChange={(e) => update({ exit_time: e.target.value })} />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-ink-muted">
+        <input
+          type="checkbox"
+          checked={form.accompanied}
+          onChange={(e) => update({ accompanied: e.target.checked })}
+          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        同伴あり
+      </label>
+      <Input label="同伴者" type="text" value={form.companions} onChange={(e) => update({ companions: e.target.value })} />
       <div>
-        <label className={labelClass}>お客様 *</label>
-        <select value={form.customer} onChange={(e) => update({ customer: e.target.value })} className={inputClass} required>
-          <option value="">選択してください</option>
-          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <label className="block text-sm font-medium text-ink-muted mb-1.5">メモ（任意）</label>
+        <textarea
+          value={form.memo}
+          onChange={(e) => update({ memo: e.target.value })}
+          rows={3}
+          className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+        />
       </div>
-      <div>
-        <label className={labelClass}>担当（キャスト） *</label>
-        <select value={form.cast} onChange={(e) => update({ cast: e.target.value })} className={inputClass} required>
-          <option value="">選択してください</option>
-          {staff.map((s) => (
-            <option key={s.id} value={s.id}>{staffDisplayName(s, users)}</option>
-          ))}
-        </select>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="未払額（円）" type="number" step="1" min="0" value={form.unpaid_amount} onChange={(e) => update({ unpaid_amount: e.target.value })} />
+        <Input label="受取額（円）" type="number" step="1" min="0" value={form.received_amount} onChange={(e) => update({ received_amount: e.target.value })} />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>来店日 *</label>
-          <input type="date" value={form.visit_date} onChange={(e) => update({ visit_date: e.target.value })} className={inputClass} required />
-        </div>
-        <div>
-          <label className={labelClass}>利用額（円） *</label>
-          <input type="number" step="1" min="0" value={form.spending} onChange={(e) => update({ spending: e.target.value })} className={inputClass} required />
-        </div>
-      </div>
-      <div>
-        <label className={labelClass}>支払方法 *</label>
-        <select value={form.payment_method} onChange={(e) => update({ payment_method: e.target.value as PaymentMethod })} className={inputClass} required>
-          {PAYMENT_METHODS.map((pm) => <option key={pm} value={pm}>{pm}</option>)}
-        </select>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>入店日時</label>
-          <input type="datetime-local" value={form.entry_time} onChange={(e) => update({ entry_time: e.target.value })} className={inputClass} />
-        </div>
-        <div>
-          <label className={labelClass}>退店日時</label>
-          <input type="datetime-local" value={form.exit_time} onChange={(e) => update({ exit_time: e.target.value })} className={inputClass} />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" id="accompanied" checked={form.accompanied} onChange={(e) => update({ accompanied: e.target.checked })} className="rounded border-gray-300 text-sky-600 focus:ring-sky-500" />
-        <label htmlFor="accompanied" className="text-sm text-gray-700">同伴あり</label>
-      </div>
-      <div>
-        <label className={labelClass}>同伴者</label>
-        <input type="text" value={form.companions} onChange={(e) => update({ companions: e.target.value })} className={inputClass} />
-      </div>
-      <div>
-        <label className={labelClass}>メモ（任意）</label>
-        <textarea value={form.memo} onChange={(e) => update({ memo: e.target.value })} className={inputClass} rows={3} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>未払額（円）</label>
-          <input type="number" step="1" min="0" value={form.unpaid_amount} onChange={(e) => update({ unpaid_amount: e.target.value })} className={inputClass} />
-        </div>
-        <div>
-          <label className={labelClass}>受取額（円）</label>
-          <input type="number" step="1" min="0" value={form.received_amount} onChange={(e) => update({ received_amount: e.target.value })} className={inputClass} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>未払日（任意）</label>
-          <input type="date" value={form.unpaid_date} onChange={(e) => update({ unpaid_date: e.target.value })} className={inputClass} />
-        </div>
-        <div className="flex items-center gap-2 pt-8">
-          <input type="checkbox" id="receipt" checked={form.receipt} onChange={(e) => update({ receipt: e.target.checked })} className="rounded border-gray-300 text-sky-600 focus:ring-sky-500" />
-          <label htmlFor="receipt" className="text-sm text-gray-700">領収書</label>
-        </div>
+      <div className="grid grid-cols-2 gap-3 items-end">
+        <Input label="未払日（任意）" type="date" value={form.unpaid_date} onChange={(e) => update({ unpaid_date: e.target.value })} />
+        <label className="flex items-center gap-2 text-sm text-ink-muted pb-3">
+          <input
+            type="checkbox"
+            checked={form.receipt}
+            onChange={(e) => update({ receipt: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+          />
+          領収書
+        </label>
       </div>
       <div className="flex gap-2 pt-2">
-        <button type="submit" disabled={saving} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600 disabled:opacity-60">
-          {saving ? '送信中…' : <><IconSave />{submitLabel}</>}
-        </button>
-        <button type="button" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50" onClick={onCancel}><IconClose />キャンセル</button>
+        <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>{submitLabel}</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>キャンセル</Button>
       </div>
     </form>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap ${className || ''}`}>
+      {children}
+    </th>
+  );
+}
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-4 py-3 ${className || ''}`}>{children}</td>;
+}
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-ink-soft shrink-0">{label}</dt>
+      <dd className="text-right text-ink">{value}</dd>
+    </div>
+  );
+}
+
+type InlineTone = 'default' | 'danger' | 'danger-soft';
+const inlineTone: Record<InlineTone, string> = {
+  default: 'text-ink-muted hover:text-ink hover:bg-slate-100',
+  danger: 'text-rose-600 hover:text-rose-700 hover:bg-rose-50',
+  'danger-soft': 'text-ink-soft hover:text-rose-600 hover:bg-rose-50',
+};
+
+function InlineAction({
+  children,
+  onClick,
+  icon,
+  tone = 'default',
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  tone?: InlineTone;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${inlineTone[tone]}`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }

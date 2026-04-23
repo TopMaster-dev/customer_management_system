@@ -1,47 +1,33 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import {
+  Receipt,
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Save,
+  AlertCircle,
+  CheckCircle2,
+  AlertTriangle,
+} from 'lucide-react';
 import type { DailySummary } from '../types/dailySummary';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 import { formatPrice } from '../utils/formatPrice';
 import type { Store, Customer } from '../types/customer';
 import type { VisitRecord } from '../types/visitRecord';
 import { API } from '../config';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sky-300 focus:ring-1 focus:ring-sky-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
-
-const iconClass = 'w-4 h-4 shrink-0';
-const IconSave = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-  </svg>
-);
-const IconClose = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-const IconAdd = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-);
-const IconEdit = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-const IconDelete = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-const IconCheck = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-);
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Modal,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 function todayISO() {
   const d = new Date();
@@ -49,12 +35,11 @@ function todayISO() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** Sum of visit_records.spending for the given store and date (customers belonging to that store, visit_date = date). */
 function computeTotalSalesFromVisits(
   visitRecords: VisitRecord[],
   customers: Customer[],
   storeId: string,
-  reportDate: string
+  reportDate: string,
 ): number {
   const customerIdsForStore = new Set(customers.filter((c) => c.store === storeId).map((c) => c.id));
   return visitRecords
@@ -100,14 +85,14 @@ export default function DailyExpenseEntry() {
       if (s.length > 0 && !storeId) setStoreId(s[0].id);
     });
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const storeName = (id: string) => stores.find((s) => s.id === id)?.name ?? id.slice(0, 8);
 
-  /** Computed total_sales for the current modal store + date (from visit_records). */
   const computedTotalSales = useMemo(
     () => (storeId && reportDate ? computeTotalSalesFromVisits(visitRecords, customers, storeId, reportDate) : 0),
-    [visitRecords, customers, storeId, reportDate]
+    [visitRecords, customers, storeId, reportDate],
   );
 
   const openModal = () => {
@@ -185,7 +170,7 @@ export default function DailyExpenseEntry() {
       fetchSummaries();
       setSuccess(true);
       closeModal();
-    } catch (err: unknown) {
+    } catch {
       setError(ERROR_MESSAGES.create);
     }
     setSaving(false);
@@ -204,21 +189,20 @@ export default function DailyExpenseEntry() {
 
   const recentSummaries = [...summaries].sort((a, b) => b.report_date.localeCompare(a.report_date)).slice(0, 20);
 
-  /** Cast-computed sales by (storeId, report_date) for table comparison. */
   const castSalesByStoreAndDate = useMemo(() => {
     const map = new Map<string, number>();
     const customerToStore = new Map<string, string>();
     customers.forEach((c) => customerToStore.set(c.id, c.store));
     visitRecords.forEach((r) => {
-      const storeId = customerToStore.get(r.customer);
-      if (storeId == null) return;
-      const key = `${storeId}\t${r.visit_date}`;
+      const storeIdForCust = customerToStore.get(r.customer);
+      if (storeIdForCust == null) return;
+      const key = `${storeIdForCust}\t${r.visit_date}`;
       map.set(key, (map.get(key) ?? 0) + Number(r.spending || 0));
     });
     return map;
   }, [customers, visitRecords]);
 
-  const getCastSales = (storeId: string, reportDate: string) => castSalesByStoreAndDate.get(`${storeId}\t${reportDate}`) ?? 0;
+  const getCastSales = (storeIdArg: string, reportDateArg: string) => castSalesByStoreAndDate.get(`${storeIdArg}\t${reportDateArg}`) ?? 0;
   const isSalesMismatch = (s: DailySummary) => {
     const storeEntered = Number(s.total_sales);
     const castSum = getCastSales(s.store, s.report_date);
@@ -227,149 +211,184 @@ export default function DailyExpenseEntry() {
   };
 
   return (
-    <div className="min-h-screen bg-sky-50/80">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">日次経費入力</h1>
-            <p className="mt-1 text-sm text-gray-500">日別の経費・人件費を入力・送信します。</p>
-          </div>
-          <button
-            type="button"
-            onClick={openModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600"
-          >
-            <IconAdd /> 経費を登録
-          </button>
+    <PageContainer>
+      <PageHeader
+        title="日次経費入力"
+        description="日別の経費・人件費を入力・送信します。"
+        icon={<Receipt className="h-5 w-5" strokeWidth={2} />}
+        actions={
+          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={openModal}>
+            経費を登録
+          </Button>
+        }
+      />
+
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
+      )}
+      {success && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>送信しました。</span>
+        </div>
+      )}
 
-        {error && (
-          <div className="mt-4 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mt-4 rounded-lg bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">
-            送信しました。
-          </div>
-        )}
-
+      <Card padded={false} className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-slate-200 bg-slate-50/40">
+          <h2 className="text-sm font-semibold text-ink">直近の日次サマリー（経費・人件費）</h2>
+        </div>
         {loading ? (
-          <p className="mt-8 text-gray-500">読み込み中…</p>
+          <div className="px-4 py-12 text-center text-sm text-ink-soft">読み込み中…</div>
         ) : (
-          <section className="mt-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <h2 className="text-sm font-medium text-gray-700">直近の日次サマリー（経費・人件費）</h2>
-              <button type="button" onClick={openModal} className="text-sm text-sky-600 hover:text-sky-700 font-medium">+ 経費を登録</button>
-            </div>
-            <div className="rounded-xl border border-gray-100 bg-white/90 shadow-sm overflow-x-auto">
-              <table className="w-full min-w-max text-left text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/80">
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">店舗</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">対象日</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">売上（店舗入力）</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">売上（キャスト集計）</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">経費（円）</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">人件費（円）</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">備考</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 text-right whitespace-nowrap">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentSummaries.length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-500">データがありません</td></tr>
-                  ) : (
-                    recentSummaries.map((s) => {
-                      const mismatch = isSalesMismatch(s);
-                      const castSum = getCastSales(s.store, s.report_date);
-                      return (
-                      <tr key={s.id} className={`border-b border-gray-50 hover:bg-sky-50/30 ${mismatch ? 'bg-amber-50/80 border-l-4 border-l-amber-400' : ''}`}>
-                        <td className="px-2 sm:px-4 py-3 text-gray-900 whitespace-nowrap">{storeName(s.store)}</td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{s.report_date}</td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatPrice(s.total_sales)}</td>
-                        <td className={`px-2 sm:px-4 py-3 whitespace-nowrap ${mismatch ? 'text-amber-700 font-medium' : 'text-gray-600'}`}>
-                          {formatPrice(castSum)}
-                          {mismatch && <span className="ml-1 text-xs text-amber-600">相違</span>}
-                        </td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatPrice(s.total_expenses)}</td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatPrice(s.labor_costs)}</td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-500 max-w-[240px] truncate" title={s.notes || undefined}>{s.notes || '—'}</td>
-                        <td className="px-2 sm:px-4 py-3 text-right whitespace-nowrap">
-                          <div className="flex flex-wrap justify-end gap-1 sm:gap-2 items-center">
-                            <button type="button" className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 text-xs sm:text-sm" onClick={() => openEdit(s)}><IconEdit />編集</button>
-                            {deleteConfirmId === s.id ? (
-                              <>
-                                <button type="button" className="inline-flex items-center gap-1 text-red-600 text-xs sm:text-sm font-medium" onClick={() => handleDelete(s.id)}><IconCheck />削除する</button>
-                                <button type="button" className="inline-flex items-center gap-1 text-gray-500 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(null)}><IconClose />キャンセル</button>
-                              </>
-                            ) : (
-                              <button type="button" className="inline-flex items-center gap-1 text-red-500 hover:text-red-600 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(s.id)}><IconDelete />削除</button>
-                            )}
-                          </div>
-                        </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50/40 border-b border-slate-200">
+                  <Th>店舗</Th>
+                  <Th>対象日</Th>
+                  <Th className="text-right">売上（店舗入力）</Th>
+                  <Th className="text-right">売上（キャスト集計）</Th>
+                  <Th className="text-right">経費（円）</Th>
+                  <Th className="text-right">人件費（円）</Th>
+                  <Th>備考</Th>
+                  <Th className="text-right">操作</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentSummaries.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-ink-soft">データがありません</td></tr>
+                ) : (
+                  recentSummaries.map((s) => {
+                    const mismatch = isSalesMismatch(s);
+                    const castSum = getCastSales(s.store, s.report_date);
+                    return (
+                      <tr key={s.id} className={`border-b border-slate-100 last:border-0 transition-colors ${mismatch ? 'bg-amber-50/50' : 'hover:bg-brand-50/30'}`}>
+                        <Td><Badge tone="neutral">{storeName(s.store)}</Badge></Td>
+                        <Td className="num-tabular text-ink-muted">{s.report_date}</Td>
+                        <Td className="num-tabular text-right text-ink">{formatPrice(s.total_sales)}</Td>
+                        <Td className="num-tabular text-right">
+                          <span className={mismatch ? 'text-amber-700 font-medium' : 'text-ink-muted'}>
+                            {formatPrice(castSum)}
+                          </span>
+                          {mismatch && (
+                            <Badge tone="warning" className="ml-2 !text-2xs">
+                              <AlertTriangle className="h-3 w-3" /> 相違
+                            </Badge>
+                          )}
+                        </Td>
+                        <Td className="num-tabular text-right text-ink">{formatPrice(s.total_expenses)}</Td>
+                        <Td className="num-tabular text-right text-ink">{formatPrice(s.labor_costs)}</Td>
+                        <Td className="text-ink-soft max-w-[240px] truncate" title={s.notes || undefined}>{s.notes || '—'}</Td>
+                        <Td className="text-right whitespace-nowrap">
+                          <InlineAction onClick={() => openEdit(s)} icon={<Pencil className="h-3.5 w-3.5" />}>編集</InlineAction>
+                          {deleteConfirmId === s.id ? (
+                            <>
+                              <InlineAction tone="danger" onClick={() => handleDelete(s.id)} icon={<Check className="h-3.5 w-3.5" />}>削除する</InlineAction>
+                              <InlineAction onClick={() => setDeleteConfirmId(null)} icon={<X className="h-3.5 w-3.5" />}>キャンセル</InlineAction>
+                            </>
+                          ) : (
+                            <InlineAction tone="danger-soft" onClick={() => setDeleteConfirmId(s.id)} icon={<Trash2 className="h-3.5 w-3.5" />}>削除</InlineAction>
+                          )}
+                        </Td>
                       </tr>
-                    ); })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        {/* Create / Edit modal */}
-        {modalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={closeModal}>
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-lg border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">{editId ? '経費を編集' : '経費を登録'}</h2>
-              <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                <div>
-                  <label className={labelClass}>店舗 *</label>
-                  <select value={storeId} onChange={(e) => setStoreId(e.target.value)} className={inputClass} required>
-                    <option value="">選択してください</option>
-                    {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>対象日 *</label>
-                  <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className={inputClass} required />
-                </div>
-                <div>
-                  <label className={labelClass}>キャスト集計（来店記録の利用額合計）</label>
-                  <div className="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                    {formatPrice(computedTotalSales)} 円
-                  </div>
-                </div>
-                <div>
-                  <label className={labelClass}>売上合計（店舗入力・円）</label>
-                  <p className="text-xs text-gray-500 mt-0.5">店舗で入力した売上。未入力の場合はキャスト集計で保存されます。</p>
-                  <input type="number" step="1" min="0" value={storeEnteredSales} onChange={(e) => setStoreEnteredSales(e.target.value)} className={inputClass} placeholder={String(Math.round(computedTotalSales))} />
-                </div>
-                <div>
-                  <label className={labelClass}>経費合計（円） *</label>
-                  <input type="number" step="1" min="0" value={totalExpenses} onChange={(e) => setTotalExpenses(e.target.value)} className={inputClass} placeholder="0" required />
-                </div>
-                <div>
-                  <label className={labelClass}>人件費（円） *</label>
-                  <input type="number" step="1" min="0" value={laborCosts} onChange={(e) => setLaborCosts(e.target.value)} className={inputClass} placeholder="0" required />
-                </div>
-                <div>
-                  <label className={labelClass}>備考</label>
-                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={3} placeholder="メモ（任意）" />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600 disabled:opacity-60">
-                    <IconSave />{saving ? '送信中…' : '送信'}
-                  </button>
-                  <button type="button" onClick={closeModal} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50">
-                    <IconClose />キャンセル
-                  </button>
-                </div>
-              </form>
-            </div>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+
+      <Modal
+        open={modalOpen}
+        onClose={closeModal}
+        title={editId ? '経費を編集' : '経費を登録'}
+        size="sm"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Select label="店舗" value={storeId} onChange={(e) => setStoreId(e.target.value)} required>
+            <option value="">選択してください</option>
+            {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </Select>
+          <Input label="対象日" type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} required />
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">キャスト集計（来店記録の利用額合計）</label>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-ink num-tabular">
+              {formatPrice(computedTotalSales)} 円
+            </div>
+          </div>
+          <Input
+            label="売上合計（店舗入力・円）"
+            type="number"
+            step="1"
+            min="0"
+            value={storeEnteredSales}
+            onChange={(e) => setStoreEnteredSales(e.target.value)}
+            placeholder={String(Math.round(computedTotalSales))}
+            hint="未入力の場合はキャスト集計で保存されます"
+          />
+          <Input label="経費合計（円）" type="number" step="1" min="0" value={totalExpenses} onChange={(e) => setTotalExpenses(e.target.value)} placeholder="0" required />
+          <Input label="人件費（円）" type="number" step="1" min="0" value={laborCosts} onChange={(e) => setLaborCosts(e.target.value)} placeholder="0" required />
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">備考</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="メモ（任意）"
+              className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>送信</Button>
+            <Button type="button" variant="outline" onClick={closeModal}>キャンセル</Button>
+          </div>
+        </form>
+      </Modal>
+    </PageContainer>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap ${className || ''}`}>
+      {children}
+    </th>
+  );
+}
+function Td({ children, className, ...rest }: React.TdHTMLAttributes<HTMLTableCellElement> & { children: React.ReactNode }) {
+  return <td className={`px-4 py-3 ${className || ''}`} {...rest}>{children}</td>;
+}
+
+type InlineTone = 'default' | 'danger' | 'danger-soft';
+const inlineTone: Record<InlineTone, string> = {
+  default: 'text-ink-muted hover:text-ink hover:bg-slate-100',
+  danger: 'text-rose-600 hover:text-rose-700 hover:bg-rose-50',
+  'danger-soft': 'text-ink-soft hover:text-rose-600 hover:bg-rose-50',
+};
+function InlineAction({
+  children,
+  onClick,
+  icon,
+  tone = 'default',
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  tone?: InlineTone;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${inlineTone[tone]}`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }

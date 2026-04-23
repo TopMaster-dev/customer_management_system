@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { AlertCircle, Save } from 'lucide-react';
 import type {
   CustomerProfileFormData,
   CustomerDetailFormData,
   CustomerPreferenceFormData,
 } from '../types/customer';
 import { API } from '../config';
+import { Button, Input, Modal, Select } from './ui';
 
 const initialProfile: CustomerProfileFormData = {
   birthday: '',
@@ -38,14 +40,9 @@ const initialPreference: CustomerPreferenceFormData = {
   favorite_brand: '',
 };
 
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sakura-300 focus:ring-1 focus:ring-sakura-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
-
-/** Western zodiac sign (星座) from date string YYYY-MM-DD. Returns Japanese name. */
 function getZodiacSignFromDate(dateStr: string): string {
   if (!dateStr || dateStr.length < 10) return '';
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const [, m, d] = dateStr.split('-').map(Number);
   const month = m;
   const day = d;
   if (month === 1 && day >= 20) return '水瓶座';
@@ -70,10 +67,9 @@ function getZodiacSignFromDate(dateStr: string): string {
   if (month === 11 && day <= 21) return '蠍座';
   if (month === 11 && day >= 22) return '射手座';
   if (month === 12 && day <= 21) return '射手座';
-  return '摩羯座'; // Dec 22 - Jan 19
+  return '摩羯座';
 }
 
-/** 干支 (eto) from date string YYYY-MM-DD. Returns 十二支 character. */
 function getEtoFromDate(dateStr: string): string {
   if (!dateStr || dateStr.length < 4) return '';
   const year = parseInt(dateStr.slice(0, 4), 10);
@@ -88,6 +84,15 @@ interface CustomerDetailModalProps {
   onSaved?: () => void;
 }
 
+function Fieldset({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+      <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-ink-soft">{title}</legend>
+      <div className="mt-1 space-y-3">{children}</div>
+    </fieldset>
+  );
+}
+
 export default function CustomerDetailModal({ customerId, onClose, onSaved }: CustomerDetailModalProps) {
   const [profile, setProfile] = useState<CustomerProfileFormData>(initialProfile);
   const [detail, setDetail] = useState<CustomerDetailFormData>(initialDetail);
@@ -100,223 +105,130 @@ export default function CustomerDetailModal({ customerId, onClose, onSaved }: Cu
     setError(null);
     setSaving(true);
     try {
-      await axios.post(`${API}/customer-profiles/`, {
-        customer: customerId,
-        ...profile,
-      });
-    } catch (err: unknown) {
-      setError('登録に失敗しました。もう一度お試しください。');
-      setSaving(false);
-      return;
-    }
-    try {
+      await axios.post(`${API}/customer-profiles/`, { customer: customerId, ...profile });
       await axios.post(`${API}/customer-details/`, {
         customer: customerId,
         ...detail,
         monthly_income: Math.round(Number(detail.monthly_income)) || 0,
         monthly_drinking_budget: Math.round(Number(detail.monthly_drinking_budget)) || 0,
       });
-    } catch (err: unknown) {
+      await axios.post(`${API}/customer-preferences/`, { customer: customerId, ...preference });
+      setSaving(false);
+      onSaved?.();
+      onClose();
+    } catch {
       setError('登録に失敗しました。もう一度お試しください。');
       setSaving(false);
-      return;
     }
-    try {
-      await axios.post(`${API}/customer-preferences/`, {
-        customer: customerId,
-        ...preference,
-      });
-    } catch (err: unknown) {
-      setError('登録に失敗しました。もう一度お試しください。');
-      setSaving(false);
-      return;
-    }
-    setSaving(false);
-    onSaved?.();
-    onClose();
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-soft border border-gray-100"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-sakura-50/80 backdrop-blur">
-          <h2 className="text-lg font-medium text-gray-800">詳細情報</h2>
-          <button
-            type="button"
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-            onClick={onClose}
-            aria-label="閉じる"
-          >
-            ×
-          </button>
-        </div>
-        <form onSubmit={handleSaveAll} className="p-5 space-y-6">
-          {error && (
-            <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4 space-y-3">
-            <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">プロフィール</h3>
-            <div>
-              <label className={labelClass}>誕生日</label>
-              <input
-                type="date"
-                value={profile.birthday}
-                onChange={(e) => {
-                  const birthday = e.target.value;
-                  setProfile((p) => ({
-                    ...p,
-                    birthday,
-                    zodiac: getZodiacSignFromDate(birthday),
-                    animal_fortune: getEtoFromDate(birthday),
-                  }));
-                }}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>星座</label>
-              <input type="text" value={profile.zodiac} onChange={(e) => setProfile((p) => ({ ...p, zodiac: e.target.value }))} className={inputClass} placeholder="誕生日で自動" />
-            </div>
-            <div>
-              <label className={labelClass}>干支</label>
-              <input type="text" value={profile.animal_fortune} onChange={(e) => setProfile((p) => ({ ...p, animal_fortune: e.target.value }))} className={inputClass} placeholder="誕生日で自動" />
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4 space-y-3">
-            <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">詳細</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>血液型</label>
-                <input type="text" value={detail.blood_type} onChange={(e) => setDetail((d) => ({ ...d, blood_type: e.target.value }))} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>出身地</label>
-                <input type="text" value={detail.birthplace} onChange={(e) => setDetail((d) => ({ ...d, birthplace: e.target.value }))} className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>外見メモ</label>
-              <textarea value={detail.appearance_memo} onChange={(e) => setDetail((d) => ({ ...d, appearance_memo: e.target.value }))} className={inputClass} rows={2} />
-            </div>
-            <div>
-              <label className={labelClass}>会社名</label>
-              <input type="text" value={detail.company_name} onChange={(e) => setDetail((d) => ({ ...d, company_name: e.target.value }))} className={inputClass} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>職種</label>
-                <input type="text" value={detail.job_title} onChange={(e) => setDetail((d) => ({ ...d, job_title: e.target.value }))} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>勤務地</label>
-                <input type="text" value={detail.work_location} onChange={(e) => setDetail((d) => ({ ...d, work_location: e.target.value }))} className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>仕事内容</label>
-              <textarea value={detail.job_description} onChange={(e) => setDetail((d) => ({ ...d, job_description: e.target.value }))} className={inputClass} rows={2} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>月収（円）</label>
-                <input type="number" step="1" min="0" value={detail.monthly_income} onChange={(e) => setDetail((d) => ({ ...d, monthly_income: e.target.value }))} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>飲み代予算（円/月）</label>
-                <input type="number" step="1" min="0" value={detail.monthly_drinking_budget} onChange={(e) => setDetail((d) => ({ ...d, monthly_drinking_budget: e.target.value }))} className={inputClass} />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>居住</label>
-                <select value={detail.residence_type} onChange={(e) => setDetail((d) => ({ ...d, residence_type: e.target.value }))} className={inputClass}>
-                  <option value="Own">持家</option>
-                  <option value="Rent">賃貸</option>
-                  <option value="Other">その他</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>最寄り駅</label>
-                <input type="text" value={detail.nearest_station} onChange={(e) => setDetail((d) => ({ ...d, nearest_station: e.target.value }))} className={inputClass} />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>婚姻状況</label>
-                <select value={detail.marital_status} onChange={(e) => setDetail((d) => ({ ...d, marital_status: e.target.value }))} className={inputClass}>
-                  <option value="Single">独身</option>
-                  <option value="Married">既婚</option>
-                  <option value="Divorced">離婚</option>
-                  <option value="Widowed">死別</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>お子様</label>
-                <input type="text" value={detail.children_info} onChange={(e) => setDetail((d) => ({ ...d, children_info: e.target.value }))} className={inputClass} placeholder="なし など" />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={detail.has_lover} onChange={(e) => setDetail((d) => ({ ...d, has_lover: e.target.checked }))} className="rounded border-gray-300 text-sakura-400 focus:ring-sakura-300" />
-              <span className="text-sm text-gray-700">恋人がいる</span>
-            </label>
-          </section>
-
-          <section className="rounded-xl border border-gray-100 bg-sakura-50/30 p-4 space-y-3">
-            <h3 className="text-sm font-medium text-gray-700 border-b border-gray-100 pb-2">嗜好</h3>
-            <div>
-              <label className={labelClass}>お酒の強さ</label>
-              <select value={preference.alcohol_strength} onChange={(e) => setPreference((p) => ({ ...p, alcohol_strength: e.target.value }))} className={inputClass}>
-                <option value="Weak">弱い</option>
-                <option value="Medium">普通</option>
-                <option value="Strong">強い</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>好きな食べ物</label>
-              <textarea value={preference.favorite_food} onChange={(e) => setPreference((p) => ({ ...p, favorite_food: e.target.value }))} className={inputClass} rows={2} />
-            </div>
-            <div>
-              <label className={labelClass}>苦手な食べ物</label>
-              <textarea value={preference.dislike_food} onChange={(e) => setPreference((p) => ({ ...p, dislike_food: e.target.value }))} className={inputClass} rows={2} />
-            </div>
-            <div>
-              <label className={labelClass}>趣味</label>
-              <textarea value={preference.hobby} onChange={(e) => setPreference((p) => ({ ...p, hobby: e.target.value }))} className={inputClass} rows={2} />
-            </div>
-            <div>
-              <label className={labelClass}>好きなブランド</label>
-              <input type="text" value={preference.favorite_brand} onChange={(e) => setPreference((p) => ({ ...p, favorite_brand: e.target.value }))} className={inputClass} />
-            </div>
-          </section>
-
-          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-5 py-2.5 rounded-xl bg-sakura-400 text-white text-sm font-medium shadow-soft hover:bg-sakura-500 disabled:opacity-60 transition-colors"
-            >
-              {saving ? '保存中…' : 'すべて保存'}
-            </button>
+    <Modal open onClose={onClose} title="詳細情報" size="lg">
+      <form onSubmit={handleSaveAll} className="space-y-5">
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+
+        <Fieldset title="プロフィール">
+          <Input
+            label="誕生日"
+            type="date"
+            value={profile.birthday}
+            onChange={(e) => {
+              const birthday = e.target.value;
+              setProfile((p) => ({
+                ...p,
+                birthday,
+                zodiac: getZodiacSignFromDate(birthday),
+                animal_fortune: getEtoFromDate(birthday),
+              }));
+            }}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="星座" value={profile.zodiac} onChange={(e) => setProfile((p) => ({ ...p, zodiac: e.target.value }))} placeholder="誕生日で自動" />
+            <Input label="干支" value={profile.animal_fortune} onChange={(e) => setProfile((p) => ({ ...p, animal_fortune: e.target.value }))} placeholder="誕生日で自動" />
+          </div>
+        </Fieldset>
+
+        <Fieldset title="詳細">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="血液型" value={detail.blood_type} onChange={(e) => setDetail((d) => ({ ...d, blood_type: e.target.value }))} />
+            <Input label="出身地" value={detail.birthplace} onChange={(e) => setDetail((d) => ({ ...d, birthplace: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">外見メモ</label>
+            <textarea value={detail.appearance_memo} onChange={(e) => setDetail((d) => ({ ...d, appearance_memo: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+          </div>
+          <Input label="会社名" value={detail.company_name} onChange={(e) => setDetail((d) => ({ ...d, company_name: e.target.value }))} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="職種" value={detail.job_title} onChange={(e) => setDetail((d) => ({ ...d, job_title: e.target.value }))} />
+            <Input label="勤務地" value={detail.work_location} onChange={(e) => setDetail((d) => ({ ...d, work_location: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">仕事内容</label>
+            <textarea value={detail.job_description} onChange={(e) => setDetail((d) => ({ ...d, job_description: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="月収（円）" type="number" step="1" min="0" value={detail.monthly_income} onChange={(e) => setDetail((d) => ({ ...d, monthly_income: e.target.value }))} />
+            <Input label="飲み代予算（円/月）" type="number" step="1" min="0" value={detail.monthly_drinking_budget} onChange={(e) => setDetail((d) => ({ ...d, monthly_drinking_budget: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select label="居住" value={detail.residence_type} onChange={(e) => setDetail((d) => ({ ...d, residence_type: e.target.value }))}>
+              <option value="Own">持家</option>
+              <option value="Rent">賃貸</option>
+              <option value="Other">その他</option>
+            </Select>
+            <Input label="最寄り駅" value={detail.nearest_station} onChange={(e) => setDetail((d) => ({ ...d, nearest_station: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select label="婚姻状況" value={detail.marital_status} onChange={(e) => setDetail((d) => ({ ...d, marital_status: e.target.value }))}>
+              <option value="Single">独身</option>
+              <option value="Married">既婚</option>
+              <option value="Divorced">離婚</option>
+              <option value="Widowed">死別</option>
+            </Select>
+            <Input label="お子様" value={detail.children_info} onChange={(e) => setDetail((d) => ({ ...d, children_info: e.target.value }))} placeholder="なし など" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-ink-muted">
+            <input
+              type="checkbox"
+              checked={detail.has_lover}
+              onChange={(e) => setDetail((d) => ({ ...d, has_lover: e.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            恋人がいる
+          </label>
+        </Fieldset>
+
+        <Fieldset title="嗜好">
+          <Select label="お酒の強さ" value={preference.alcohol_strength} onChange={(e) => setPreference((p) => ({ ...p, alcohol_strength: e.target.value }))}>
+            <option value="Weak">弱い</option>
+            <option value="Medium">普通</option>
+            <option value="Strong">強い</option>
+          </Select>
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">好きな食べ物</label>
+            <textarea value={preference.favorite_food} onChange={(e) => setPreference((p) => ({ ...p, favorite_food: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">苦手な食べ物</label>
+            <textarea value={preference.dislike_food} onChange={(e) => setPreference((p) => ({ ...p, dislike_food: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">趣味</label>
+            <textarea value={preference.hobby} onChange={(e) => setPreference((p) => ({ ...p, hobby: e.target.value }))} rows={2} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+          </div>
+          <Input label="好きなブランド" value={preference.favorite_brand} onChange={(e) => setPreference((p) => ({ ...p, favorite_brand: e.target.value }))} />
+        </Fieldset>
+
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2">
+          <Button type="button" variant="outline" onClick={onClose}>キャンセル</Button>
+          <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>すべて保存</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

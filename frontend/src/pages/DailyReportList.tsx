@@ -1,14 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { FileText, Plus, Filter, Pencil, Trash2, Check, X, Save, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 import type { Store } from '../types/customer';
 import type { DailyReport } from '../types/dailyReport';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sky-300 focus:ring-1 focus:ring-sky-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Modal,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 function todayISO() {
   const d = new Date();
@@ -131,122 +138,155 @@ export default function DailyReportList() {
   }
 
   return (
-    <div className="min-h-screen bg-sky-50/80">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">日報</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              店舗ごと・1日1件の日報です。作成・編集はスタッフ・マネージャー（管理者・オーナーを含む）のみです。統括は閲覧のみです。
-            </p>
-          </div>
-          {canWrite && (
-            <button type="button" onClick={openCreate} className="px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600">
-              + 日報を作成
-            </button>
-          )}
+    <PageContainer>
+      <PageHeader
+        title="日報"
+        description="店舗ごと・1日1件の日報です。作成・編集はスタッフ・マネージャー以上のみです。"
+        icon={<FileText className="h-5 w-5" strokeWidth={2} />}
+        actions={canWrite && <Button leftIcon={<Plus className="h-4 w-4" />} onClick={openCreate}>日報を作成</Button>}
+      />
+
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {error && <div className="mt-4 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <Card className="mb-4 !p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted">
+            <Filter className="h-4 w-4" strokeWidth={1.75} />
+            絞り込み
+          </span>
+          <select value={filterStore} onChange={(e) => setFilterStore(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+            <option value="">すべての店舗</option>
+            {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} title="から" className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+          <span className="text-xs text-ink-faint">～</span>
+          <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} title="まで" className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200" />
+        </div>
+      </Card>
 
+      <Card padded={false} className="overflow-hidden">
         {loading ? (
-          <p className="mt-8 text-gray-500">読み込み中…</p>
+          <div className="px-4 py-12 text-center text-sm text-ink-soft">読み込み中…</div>
         ) : (
-          <>
-            <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white/90 px-4 py-3 shadow-sm">
-              <span className="text-sm font-medium text-gray-700">絞り込み</span>
-              <select value={filterStore} onChange={(e) => setFilterStore(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                <option value="">すべての店舗</option>
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="rounded-lg border border-gray-200 px-3 py-2 text-sm" title="から" />
-              <span className="text-gray-400">～</span>
-              <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="rounded-lg border border-gray-200 px-3 py-2 text-sm" title="まで" />
-            </div>
-
-            <div className="mt-4 rounded-xl border border-gray-100 bg-white/90 shadow-sm overflow-x-auto">
-              <table className="w-full min-w-max text-left text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/80">
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">店舗</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">日付</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">内容</th>
-                    <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">更新</th>
-                    {canWrite && <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 text-right whitespace-nowrap">操作</th>}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200">
+                  <Th>店舗</Th>
+                  <Th>日付</Th>
+                  <Th>内容</Th>
+                  <Th>更新</Th>
+                  {canWrite && <Th className="text-right">操作</Th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={canWrite ? 5 : 4} className="px-4 py-12 text-center text-sm text-ink-soft">
+                      日報がありません
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={canWrite ? 5 : 4} className="px-4 py-8 text-center text-gray-500">
-                        日報がありません
-                      </td>
+                ) : (
+                  filtered.map((r) => (
+                    <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-brand-50/30 transition-colors">
+                      <Td><Badge tone="neutral">{storeName(r.store)}</Badge></Td>
+                      <Td className="num-tabular text-ink-muted">{r.report_date}</Td>
+                      <Td className="text-ink-muted max-w-md truncate" title={r.content || undefined}>
+                        {r.content?.trim() ? r.content.slice(0, 120) + (r.content.length > 120 ? '…' : '') : '—'}
+                      </Td>
+                      <Td className="text-xs text-ink-soft num-tabular">{formatDate(r.updated_at)}</Td>
+                      {canWrite && (
+                        <Td className="text-right whitespace-nowrap">
+                          <InlineAction onClick={() => openEdit(r)} icon={<Pencil className="h-3.5 w-3.5" />}>編集</InlineAction>
+                          {deleteId === r.id ? (
+                            <>
+                              <InlineAction tone="danger" onClick={() => handleDelete(r.id)} icon={<Check className="h-3.5 w-3.5" />}>削除する</InlineAction>
+                              <InlineAction onClick={() => setDeleteId(null)} icon={<X className="h-3.5 w-3.5" />}>キャンセル</InlineAction>
+                            </>
+                          ) : (
+                            <InlineAction tone="danger-soft" onClick={() => setDeleteId(r.id)} icon={<Trash2 className="h-3.5 w-3.5" />}>削除</InlineAction>
+                          )}
+                        </Td>
+                      )}
                     </tr>
-                  ) : (
-                    filtered.map((r) => (
-                      <tr key={r.id} className="border-b border-gray-50 hover:bg-sky-50/30">
-                        <td className="px-2 sm:px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{storeName(r.store)}</td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{r.report_date}</td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-600 max-w-md truncate" title={r.content || undefined}>{r.content?.trim() ? r.content.slice(0, 120) + (r.content.length > 120 ? '…' : '') : '—'}</td>
-                        <td className="px-2 sm:px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{formatDate(r.updated_at)}</td>
-                        {canWrite && (
-                          <td className="px-2 sm:px-4 py-3 text-right whitespace-nowrap">
-                            <button type="button" className="text-sky-600 hover:underline text-xs mr-2" onClick={() => openEdit(r)}>編集</button>
-                            {deleteId === r.id ? (
-                              <>
-                                <button type="button" className="text-red-600 text-xs font-medium mr-1" onClick={() => handleDelete(r.id)}>削除する</button>
-                                <button type="button" className="text-gray-500 text-xs" onClick={() => setDeleteId(null)}>キャンセル</button>
-                              </>
-                            ) : (
-                              <button type="button" className="text-red-500 hover:underline text-xs" onClick={() => setDeleteId(r.id)}>削除</button>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-
-        {modalOpen && canWrite && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={closeModal}>
-            <div className="w-full max-w-lg rounded-2xl bg-white shadow-lg border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">{editId ? '日報を編集' : '日報を作成'}</h2>
-              <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                <div>
-                  <label className={labelClass}>店舗 *</label>
-                  <select value={storeId} onChange={(e) => setStoreId(e.target.value)} className={inputClass} required disabled={!!editId}>
-                    {stores.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                  {editId && <p className="mt-1 text-xs text-gray-500">店舗・日付は編集できません（別日は新規作成してください）</p>}
-                </div>
-                <div>
-                  <label className={labelClass}>日付 *</label>
-                  <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className={inputClass} required disabled={!!editId} />
-                </div>
-                <div>
-                  <label className={labelClass}>本文</label>
-                  <textarea value={content} onChange={(e) => setContent(e.target.value)} className={inputClass} rows={8} placeholder="本日の内容を入力" />
-                </div>
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                <div className="flex gap-2 pt-2">
-                  <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600 disabled:opacity-60">
-                    {saving ? '送信中…' : '保存'}
-                  </button>
-                  <button type="button" onClick={closeModal} className="px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50">キャンセル</button>
-                </div>
-              </form>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+
+      <Modal open={modalOpen && canWrite} onClose={closeModal} title={editId ? '日報を編集' : '日報を作成'} size="md">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Select label="店舗" value={storeId} onChange={(e) => setStoreId(e.target.value)} required disabled={!!editId}>
+            {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </Select>
+          {editId && <p className="-mt-2 text-xs text-ink-faint">店舗・日付は編集できません（別日は新規作成してください）</p>}
+          <Input label="日付" type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} required disabled={!!editId} />
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1.5">本文</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={8}
+              placeholder="本日の内容を入力"
+              className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            />
+          </div>
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>保存</Button>
+            <Button type="button" variant="outline" onClick={closeModal}>キャンセル</Button>
+          </div>
+        </form>
+      </Modal>
+    </PageContainer>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <th className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap ${className || ''}`}>{children}</th>;
+}
+function Td({ children, className, ...rest }: React.TdHTMLAttributes<HTMLTableCellElement> & { children: React.ReactNode }) {
+  return <td className={`px-4 py-3 ${className || ''}`} {...rest}>{children}</td>;
+}
+
+type InlineTone = 'default' | 'danger' | 'danger-soft';
+const inlineTone: Record<InlineTone, string> = {
+  default: 'text-ink-muted hover:text-ink hover:bg-slate-100',
+  danger: 'text-rose-600 hover:text-rose-700 hover:bg-rose-50',
+  'danger-soft': 'text-ink-soft hover:text-rose-600 hover:bg-rose-50',
+};
+function InlineAction({
+  children,
+  onClick,
+  icon,
+  tone = 'default',
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  tone?: InlineTone;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${inlineTone[tone]}`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }

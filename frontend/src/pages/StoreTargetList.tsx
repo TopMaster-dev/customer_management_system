@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Trophy, Save, AlertCircle, AlertTriangle, Plus } from 'lucide-react';
 import { API } from '../config';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 import { formatPrice } from '../utils/formatPrice';
@@ -7,10 +8,13 @@ import type { Store, Customer } from '../types/customer';
 import type { VisitRecord } from '../types/visitRecord';
 import type { StoreTarget, StoreTargetFormData, StoreTargetType } from '../types/storeTarget';
 import { STORE_TARGET_TYPES } from '../types/storeTarget';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sky-300 focus:ring-1 focus:ring-sky-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
+import {
+  Button,
+  Card,
+  Input,
+  PageContainer,
+  PageHeader,
+} from '../components/ui';
 
 function todayISO() {
   const d = new Date();
@@ -107,7 +111,6 @@ export default function StoreTargetList() {
     visitRecords.forEach((r) => {
       const sId = customerToStore.get(r.customer);
       if (!sId) return;
-      // month key and day key
       const monthKey = `${sId}\tMonthly\t${startOfMonth(r.visit_date)}`;
       const dayKey = `${sId}\tDaily\t${r.visit_date}`;
       const amount = Number(r.spending || 0);
@@ -202,115 +205,145 @@ export default function StoreTargetList() {
   const mismatch = (target: number, actual: number) => target !== actual;
 
   return (
-    <div className="min-h-screen bg-sky-50/80">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">店舗目標</h1>
-          <p className="mt-1 text-sm text-gray-500">店舗ごとの目標（売上・組数・新規）を登録します。新規=お客様の初回来店日が対象期間内。</p>
+    <PageContainer className="max-w-5xl">
+      <PageHeader
+        title="店舗目標"
+        description="店舗ごとの目標（売上・組数・新規）を登録します。新規=お客様の初回来店日が対象期間内。"
+        icon={<Trophy className="h-5 w-5" strokeWidth={2} />}
+      />
+
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {error && <div className="mt-4 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {loading ? (
+        <Card><p className="text-sm text-ink-soft text-center">読み込み中…</p></Card>
+      ) : (
+        <div className="space-y-5">
+          <Card padded={false} className="overflow-hidden">
+            <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-slate-200 bg-slate-50/40">
+              <span className="text-sm font-semibold text-ink">対象</span>
+              <select
+                value={storeId}
+                onChange={(e) => { setStoreId(e.target.value); setForm((f) => ({ ...f, store: e.target.value })); }}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+              >
+                {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <select
+                value={targetType}
+                onChange={(e) => setTargetType(e.target.value as StoreTargetType)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+              >
+                {STORE_TARGET_TYPES.map((t) => <option key={t} value={t}>{t === 'Daily' ? '日次' : '月次'}</option>)}
+              </select>
+              <input
+                type={targetType === 'Daily' ? 'date' : 'month'}
+                value={targetType === 'Daily' ? targetDate : targetDate.slice(0, 7)}
+                onChange={(e) => setTargetDate(targetType === 'Daily' ? e.target.value : `${e.target.value}-01`)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+              />
+              <Button size="sm" className="ml-auto" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={openCreateOrEdit}>
+                {existing ? '目標を編集' : '目標を登録'}
+              </Button>
+            </div>
 
-        {loading ? (
-          <p className="mt-8 text-gray-500">読み込み中…</p>
-        ) : (
-          <>
-            <section className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/80 flex flex-wrap items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">対象</span>
-                <select value={storeId} onChange={(e) => { setStoreId(e.target.value); setForm((f) => ({ ...f, store: e.target.value })); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-                <select value={targetType} onChange={(e) => setTargetType(e.target.value as StoreTargetType)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                  {STORE_TARGET_TYPES.map((t) => (
-                    <option key={t} value={t}>{t === 'Daily' ? '日次' : '月次'}</option>
-                  ))}
-                </select>
-                <input
-                  type={targetType === 'Daily' ? 'date' : 'month'}
-                  value={targetType === 'Daily' ? targetDate : targetDate.slice(0, 7)}
-                  onChange={(e) => setTargetDate(targetType === 'Daily' ? e.target.value : `${e.target.value}-01`)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+            <div className="p-5">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-3">実績（キャスト入力の来店記録集計）</h2>
+              <div className="grid gap-3 sm:grid-cols-4">
+                <ActualTile label="売上"     value={`${formatPrice(actuals.sales)} 円`} />
+                <ActualTile label="組数"     value={formatPrice(actuals.groups)} />
+                <ActualTile label="新規売上" value={`${formatPrice(actuals.newSales)} 円`} />
+                <ActualTile label="新規組数" value={formatPrice(actuals.newGroups)} />
+              </div>
+            </div>
+          </Card>
+
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-200 bg-gradient-to-br from-brand-50 to-indigo-50/40">
+              <h2 className="text-sm font-semibold text-ink">{existing ? '目標を編集' : '目標を登録'}</h2>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                店舗「<span className="text-ink font-medium">{storeName(storeId)}</span>」 / {targetType === 'Daily' ? targetDate : targetDate.slice(0, 7)}
+              </p>
+            </div>
+            <div className="p-5">
+              <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+                <TargetField
+                  label="売上目標（円）"
+                  value={form.sales_target}
+                  onChange={(v) => setForm((f) => ({ ...f, sales_target: v }))}
+                  mismatch={mismatch(Number(form.sales_target || 0), actuals.sales)}
+                  actualText={`実績 ${formatPrice(actuals.sales)}`}
                 />
-                <button type="button" onClick={openCreateOrEdit} className="ml-auto text-sm text-sky-600 hover:text-sky-700 font-medium">
-                  {existing ? '目標を編集' : '+ 目標を登録'}
-                </button>
-              </div>
-
-              <div className="p-5">
-                <h2 className="text-sm font-medium text-gray-700">実績（キャスト入力の来店記録集計）</h2>
-                <div className="mt-3 grid gap-3 sm:grid-cols-4 text-sm">
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-gray-500">売上</p>
-                    <p className="mt-1 font-semibold text-gray-900">{formatPrice(actuals.sales)} 円</p>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-gray-500">組数</p>
-                    <p className="mt-1 font-semibold text-gray-900">{formatPrice(actuals.groups)}</p>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-gray-500">新規売上</p>
-                    <p className="mt-1 font-semibold text-gray-900">{formatPrice(actuals.newSales)} 円</p>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-gray-500">新規組数</p>
-                    <p className="mt-1 font-semibold text-gray-900">{formatPrice(actuals.newGroups)}</p>
-                  </div>
+                <TargetField
+                  label="組数目標"
+                  value={form.group_target}
+                  onChange={(v) => setForm((f) => ({ ...f, group_target: v }))}
+                  mismatch={mismatch(Number(form.group_target || 0), actuals.groups)}
+                  actualText={`実績 ${formatPrice(actuals.groups)}`}
+                />
+                <TargetField
+                  label="新規売上目標（円）"
+                  value={form.new_sales_target}
+                  onChange={(v) => setForm((f) => ({ ...f, new_sales_target: v }))}
+                  mismatch={mismatch(Number(form.new_sales_target || 0), actuals.newSales)}
+                  actualText={`実績 ${formatPrice(actuals.newSales)}`}
+                />
+                <TargetField
+                  label="新規組数目標"
+                  value={form.new_group_target}
+                  onChange={(v) => setForm((f) => ({ ...f, new_group_target: v }))}
+                  mismatch={mismatch(Number(form.new_group_target || 0), actuals.newGroups)}
+                  actualText={`実績 ${formatPrice(actuals.newGroups)}`}
+                />
+                <div className="sm:col-span-2 pt-1">
+                  <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>
+                    {existing ? '保存' : '登録'}
+                  </Button>
                 </div>
-              </div>
-            </section>
+              </form>
+            </div>
+          </Card>
+        </div>
+      )}
+    </PageContainer>
+  );
+}
 
-            <section className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 bg-sky-50/50">
-                <h2 className="text-sm font-medium text-gray-700">{existing ? '目標を編集' : '目標を登録'}</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  店舗「{storeName(storeId)}」 / {targetType === 'Daily' ? targetDate : targetDate.slice(0, 7)}
-                </p>
-              </div>
-              <div className="p-5">
-                <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className={labelClass}>売上目標（円）</label>
-                    <input type="number" step="1" min="0" value={form.sales_target} onChange={(e) => setForm((f) => ({ ...f, sales_target: e.target.value }))} className={inputClass} />
-                    {mismatch(Number(form.sales_target || 0), actuals.sales) && (
-                      <p className="mt-1 text-xs text-amber-700">実績と相違があります（実績 {formatPrice(actuals.sales)}）</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelClass}>組数目標</label>
-                    <input type="number" step="1" min="0" value={form.group_target} onChange={(e) => setForm((f) => ({ ...f, group_target: e.target.value }))} className={inputClass} />
-                    {mismatch(Number(form.group_target || 0), actuals.groups) && (
-                      <p className="mt-1 text-xs text-amber-700">実績と相違があります（実績 {formatPrice(actuals.groups)}）</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelClass}>新規売上目標（円）</label>
-                    <input type="number" step="1" min="0" value={form.new_sales_target} onChange={(e) => setForm((f) => ({ ...f, new_sales_target: e.target.value }))} className={inputClass} />
-                    {mismatch(Number(form.new_sales_target || 0), actuals.newSales) && (
-                      <p className="mt-1 text-xs text-amber-700">実績と相違があります（実績 {formatPrice(actuals.newSales)}）</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelClass}>新規組数目標</label>
-                    <input type="number" step="1" min="0" value={form.new_group_target} onChange={(e) => setForm((f) => ({ ...f, new_group_target: e.target.value }))} className={inputClass} />
-                    {mismatch(Number(form.new_group_target || 0), actuals.newGroups) && (
-                      <p className="mt-1 text-xs text-amber-700">実績と相違があります（実績 {formatPrice(actuals.newGroups)}）</p>
-                    )}
-                  </div>
-                  <div className="sm:col-span-2 flex gap-2 pt-2">
-                    <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600 disabled:opacity-60">
-                      {saving ? '送信中…' : existing ? '保存' : '登録'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </section>
-          </>
-        )}
-      </div>
+function ActualTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+      <p className="text-xs font-medium text-ink-soft">{label}</p>
+      <p className="mt-1.5 text-lg font-semibold text-ink num-tabular">{value}</p>
     </div>
   );
 }
 
+function TargetField({
+  label,
+  value,
+  onChange,
+  mismatch,
+  actualText,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  mismatch: boolean;
+  actualText: string;
+}) {
+  return (
+    <div>
+      <Input label={label} type="number" step="1" min="0" value={value} onChange={(e) => onChange(e.target.value)} />
+      {mismatch && (
+        <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-amber-700">
+          <AlertTriangle className="h-3 w-3" />
+          {actualText} と相違
+        </p>
+      )}
+    </div>
+  );
+}

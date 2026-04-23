@@ -1,5 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import {
+  UserCircle,
+  Target,
+  Wallet,
+  HandCoins,
+  Settings2,
+  Mail,
+  KeyRound,
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  TrendingUp,
+  Paperclip,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 import { formatPrice } from '../utils/formatPrice';
@@ -10,10 +29,16 @@ import type { StaffMember } from '../types/staffMember';
 import type { Store } from '../types/customer';
 import type { AdvanceRequest } from '../types/advanceRequest';
 import { ADVANCE_STATUS_LABELS } from '../types/advanceRequest';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sakura-300 focus:ring-1 focus:ring-sakura-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Modal,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 function todayISO() {
   const d = new Date();
@@ -21,7 +46,6 @@ function todayISO() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-// Placeholder dashboard data
 const PLACEHOLDER_GOAL = { label: '今月の売上目標', value: '500,000', unit: '円', rate: 75 };
 const PLACEHOLDER_SALES = [
   { label: '1月', value: 320 },
@@ -39,11 +63,50 @@ const emptyTargetForm = (firstStaffId: string): PerformanceTargetFormData => ({
   target_date: todayISO(),
 });
 
-/** API response for GET /api/my-page/salary/ */
 interface MyPageSalary {
   hourly_wage: number | null;
   current_month_commission: number;
   last_month_commission: number;
+}
+
+function SectionCard({
+  title,
+  icon,
+  action,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card padded={false} className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-200 bg-slate-50/40">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <span className="text-brand-600">{icon}</span>
+          {title}
+        </div>
+        {action}
+      </div>
+      <div className="p-5">{children}</div>
+    </Card>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <p className="text-xs font-medium text-ink-soft">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-ink num-tabular">{value}</p>
+    </div>
+  );
+}
+
+function advanceStatusTone(status: string): 'success' | 'danger' | 'warning' {
+  if (status === 'Approved') return 'success';
+  if (status === 'Rejected') return 'danger';
+  return 'warning';
 }
 
 export default function MyPage() {
@@ -57,7 +120,6 @@ export default function MyPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Cast: own sales targets (performance_targets) on My Page
   const [targets, setTargets] = useState<PerformanceTarget[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -69,11 +131,9 @@ export default function MyPage() {
   const [targetSaving, setTargetSaving] = useState(false);
   const [targetError, setTargetError] = useState<string | null>(null);
 
-  // 給与情報（現在の時給・今月の歩合・先月の歩合）
   const [salary, setSalary] = useState<MyPageSalary | null>(null);
   const [salaryLoading, setSalaryLoading] = useState(false);
 
-  // 前借申請（金額・伝票添付）
   const [advanceRequests, setAdvanceRequests] = useState<AdvanceRequest[]>([]);
   const [advanceLoading, setAdvanceLoading] = useState(false);
   const [advanceSaving, setAdvanceSaving] = useState(false);
@@ -84,7 +144,8 @@ export default function MyPage() {
   const [advanceStatusUpdating, setAdvanceStatusUpdating] = useState<string | null>(null);
 
   const isCast = user?.role === 'Cast';
-  const canApproveAdvance = user?.role === 'Manager' || user?.role === 'Supervisor' || user?.role === 'Admin' || user?.role === 'Owner';
+  const canApproveAdvance =
+    user?.role === 'Manager' || user?.role === 'Supervisor' || user?.role === 'Admin' || user?.role === 'Owner';
 
   const fetchTargets = () => {
     if (!isCast) return;
@@ -235,13 +296,11 @@ export default function MyPage() {
     }
   };
 
-  if (!user) return null;
-
   const handleChangeEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    if (!newEmail.trim()) return;
+    if (!newEmail.trim() || !user) return;
     setSaving(true);
     try {
       await axios.patch(`${API}/users/${user.user_id}/`, { email: newEmail.trim() });
@@ -259,6 +318,7 @@ export default function MyPage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    if (!user) return;
     if (newPassword !== confirmPassword) {
       setError('パスワードが一致しません。もう一度ご確認ください。');
       return;
@@ -280,397 +340,480 @@ export default function MyPage() {
     setSaving(false);
   };
 
+  if (!user) return null;
+
   const maxBar = Math.max(...PLACEHOLDER_SALES.map((s) => s.value));
 
   return (
-    <div className="min-h-screen bg-washi">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">マイページ</h1>
-        <p className="mt-1 text-sm text-gray-500">{user.email} · {user.role}</p>
+    <PageContainer className="max-w-5xl">
+      <PageHeader
+        title="マイページ"
+        description={`${user.email} · ${user.role}`}
+        icon={<UserCircle className="h-5 w-5" strokeWidth={2} />}
+      />
 
-        {success && (
-          <div className="mt-4 rounded-lg bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-800">
-            {success}
+      {success && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{success}</span>
+        </div>
+      )}
+
+      <div className="space-y-5">
+        <SectionCard title="ダッシュボード" icon={<TrendingUp className="h-4 w-4" strokeWidth={2} />}>
+          <div className="rounded-xl border border-brand-100 bg-gradient-to-br from-brand-50 to-indigo-50/50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium text-ink">{PLACEHOLDER_GOAL.label}</span>
+              <span className="text-xl font-semibold text-ink num-tabular">
+                {PLACEHOLDER_GOAL.value} <span className="text-sm text-ink-soft font-normal">{PLACEHOLDER_GOAL.unit}</span>
+              </span>
+            </div>
+            <div className="mt-3 h-2 rounded-full bg-white/80 overflow-hidden">
+              <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${PLACEHOLDER_GOAL.rate}%` }} />
+            </div>
+            <p className="mt-1.5 text-xs text-ink-soft">達成率 <span className="font-semibold text-brand-700 num-tabular">{PLACEHOLDER_GOAL.rate}%</span></p>
           </div>
+
+          <div className="mt-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-3">売上推移（サンプル）</h3>
+            <div className="flex items-end gap-2 h-44">
+              {PLACEHOLDER_SALES.map((s) => (
+                <div key={s.label} className="flex-1 flex flex-col items-center gap-1.5">
+                  <span className="text-2xs font-semibold text-ink-muted num-tabular">{s.value}</span>
+                  <div
+                    className="w-full rounded-t-md bg-gradient-to-t from-brand-500 to-brand-300 min-h-[0.5rem] transition-all"
+                    style={{ height: `${(s.value / maxBar) * 100}%` }}
+                  />
+                  <span className="text-2xs text-ink-faint">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </SectionCard>
+
+        {isCast && (
+          <SectionCard title="給与情報" icon={<Wallet className="h-4 w-4" strokeWidth={2} />}>
+            {salaryLoading ? (
+              <p className="text-sm text-ink-soft">読み込み中…</p>
+            ) : salary ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <StatTile label="現在の時給" value={`${formatPrice(salary.hourly_wage)} 円`} />
+                <StatTile label="現在給与（今月の歩合見込み）" value={`${formatPrice(salary.current_month_commission)} 円`} />
+                <StatTile label="先月給与（先月の歩合）" value={`${formatPrice(salary.last_month_commission)} 円`} />
+              </div>
+            ) : (
+              <p className="text-sm text-ink-soft">スタッフに登録されると給与情報が表示されます。</p>
+            )}
+          </SectionCard>
         )}
 
-        {/* Dashboard: goals & sales placeholder */}
-        <section className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 bg-sakura-50/50">
-            <h2 className="text-sm font-medium text-gray-700">ダッシュボード</h2>
-          </div>
-          <div className="p-5 space-y-6">
-            <div className="rounded-xl bg-sakura-50/50 border border-sakura-100 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium text-gray-700">{PLACEHOLDER_GOAL.label}</span>
-                <span className="text-lg font-semibold text-gray-900">{PLACEHOLDER_GOAL.value} {PLACEHOLDER_GOAL.unit}</span>
-              </div>
-              <div className="mt-2 h-2 rounded-full bg-gray-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-sakura-400 transition-all"
-                  style={{ width: `${PLACEHOLDER_GOAL.rate}%` }}
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">達成率 {PLACEHOLDER_GOAL.rate}%</p>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">売上推移（サンプル）</h3>
-              <div className="flex items-end gap-2 h-44">
-                {PLACEHOLDER_SALES.map((s) => (
-                  <div key={s.label} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-xs font-medium text-gray-600">{s.value}</span>
-                    <div className="w-full rounded-t bg-sakura-200 min-h-[0.5rem]" style={{ height: `${(s.value / maxBar) * 100}%` }} />
-                    <span className="text-xs text-gray-500">{s.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Cast: 給与情報（現在の時給・現在給与・先月給与） */}
         {isCast && (
-          <section className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-sakura-50/50">
-              <h2 className="text-sm font-medium text-gray-700">給与情報</h2>
-            </div>
-            <div className="p-5">
-              {salaryLoading ? (
-                <p className="text-sm text-gray-500">読み込み中…</p>
-              ) : salary ? (
-                <dl className="grid gap-4 sm:grid-cols-3 text-sm">
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <dt className="text-gray-500 font-medium">現在の時給</dt>
-                    <dd className="mt-1 text-lg font-semibold text-gray-900">{formatPrice(salary.hourly_wage)} 円</dd>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <dt className="text-gray-500 font-medium">現在給与（今月の歩合見込み）</dt>
-                    <dd className="mt-1 text-lg font-semibold text-gray-900">{formatPrice(salary.current_month_commission)} 円</dd>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <dt className="text-gray-500 font-medium">先月給与（先月の歩合）</dt>
-                    <dd className="mt-1 text-lg font-semibold text-gray-900">{formatPrice(salary.last_month_commission)} 円</dd>
-                  </div>
-                </dl>
-              ) : (
-                <p className="text-sm text-gray-500">スタッフに登録されると給与情報が表示されます。</p>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* Cast: 売上目標 (own sales targets) */}
-        {isCast && (
-          <section className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-sakura-50/50 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-medium text-gray-700">売上目標</h2>
-              <button
-                type="button"
-                onClick={openAddTarget}
-                disabled={myStaff.length === 0}
-                className="px-3 py-1.5 rounded-lg bg-sakura-400 text-white text-sm font-medium hover:bg-sakura-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+          <SectionCard
+            title="売上目標"
+            icon={<Target className="h-4 w-4" strokeWidth={2} />}
+            action={
+              <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={openAddTarget} disabled={myStaff.length === 0}>
                 目標を追加
-              </button>
-            </div>
-            <div className="p-5">
-              {targetError && (
-                <div className="mb-4 rounded-lg bg-red-50 border border-red-100 px-4 py-2 text-sm text-red-700">{targetError}</div>
-              )}
-              {myStaff.length === 0 ? (
-                <p className="text-sm text-gray-500">目標を登録するには、スタッフ管理でご自身を店舗に登録する必要があります。</p>
-              ) : targetsLoading ? (
-                <p className="text-sm text-gray-500">読み込み中…</p>
-              ) : targets.length === 0 ? (
-                <p className="text-sm text-gray-500">目標がありません。「目標を追加」から登録してください。</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">店舗</th>
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">種別</th>
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">目標日</th>
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">目標額</th>
-                        <th className="py-2 text-right font-medium text-gray-700 whitespace-nowrap">操作</th>
+              </Button>
+            }
+          >
+            {targetError && (
+              <div className="mb-3 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{targetError}</span>
+              </div>
+            )}
+            {myStaff.length === 0 ? (
+              <p className="text-sm text-ink-soft">目標を登録するには、スタッフ管理でご自身を店舗に登録する必要があります。</p>
+            ) : targetsLoading ? (
+              <p className="text-sm text-ink-soft">読み込み中…</p>
+            ) : targets.length === 0 ? (
+              <p className="text-sm text-ink-soft">目標がありません。「目標を追加」から登録してください。</p>
+            ) : (
+              <div className="overflow-x-auto -mx-5">
+                <table className="w-full min-w-max text-left text-sm">
+                  <thead>
+                    <tr className="border-y border-slate-200 bg-slate-50/40">
+                      <Th>店舗</Th>
+                      <Th>種別</Th>
+                      <Th>目標日</Th>
+                      <Th className="text-right">目標額</Th>
+                      <Th className="text-right">操作</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {targets.map((t) => (
+                      <tr key={t.id} className="border-b border-slate-100 last:border-0">
+                        <Td className="font-medium text-ink">{staffLabel(t.staff)}</Td>
+                        <Td>
+                          <Badge tone={t.target_type === 'Daily' ? 'info' : 'brand'}>
+                            {t.target_type === 'Daily' ? '日次' : '月次'}
+                          </Badge>
+                        </Td>
+                        <Td className="num-tabular text-ink-muted">{t.target_date}</Td>
+                        <Td className="num-tabular text-right text-ink">{formatPrice(t.target_amount)} 円</Td>
+                        <Td className="text-right whitespace-nowrap">
+                          <InlineAction onClick={() => openEditTarget(t)} icon={<Pencil className="h-3.5 w-3.5" />}>編集</InlineAction>
+                          {targetDeleteId === t.id ? (
+                            <>
+                              <InlineAction tone="danger" onClick={() => handleDeleteTarget(t.id)} icon={<Check className="h-3.5 w-3.5" />}>削除する</InlineAction>
+                              <InlineAction onClick={() => setTargetDeleteId(null)} icon={<X className="h-3.5 w-3.5" />}>キャンセル</InlineAction>
+                            </>
+                          ) : (
+                            <InlineAction tone="danger-soft" onClick={() => setTargetDeleteId(t.id)} icon={<Trash2 className="h-3.5 w-3.5" />}>削除</InlineAction>
+                          )}
+                        </Td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {targets.map((t) => (
-                        <tr key={t.id} className="border-b border-gray-50">
-                          <td className="py-2 pr-4 text-gray-900 whitespace-nowrap">{staffLabel(t.staff)}</td>
-                          <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{t.target_type === 'Daily' ? '日次' : '月次'}</td>
-                          <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{t.target_date}</td>
-                          <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{formatPrice(t.target_amount)} 円</td>
-                          <td className="py-2 text-right whitespace-nowrap">
-                            <button type="button" className="text-sakura-600 hover:underline text-xs mr-2" onClick={() => openEditTarget(t)}>編集</button>
-                            {targetDeleteId === t.id ? (
-                              <>
-                                <button type="button" className="text-red-600 font-medium text-xs mr-1" onClick={() => handleDeleteTarget(t.id)}>削除する</button>
-                                <button type="button" className="text-gray-500 text-xs" onClick={() => setTargetDeleteId(null)}>キャンセル</button>
-                              </>
-                            ) : (
-                              <button type="button" className="text-red-500 hover:underline text-xs" onClick={() => setTargetDeleteId(t.id)}>削除</button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SectionCard>
         )}
 
-        {/* 前借申請（金額の申請・前借伝票の添付） */}
-        <section className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 bg-sakura-50/50">
-            <h2 className="text-sm font-medium text-gray-700">前借申請</h2>
-          </div>
-          <div className="p-5 space-y-6">
-            <form onSubmit={handleAdvanceSubmit} className="space-y-4 max-w-md">
-              <p className="text-sm text-gray-500">前借希望金額と、任意で前借伝票を添付して申請できます。</p>
-              {advanceError && (
-                <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-2 text-sm text-red-700">{advanceError}</div>
-              )}
-              <div>
-                <label className={labelClass}>前借希望金額（円） *</label>
-                <input type="number" step="1" min="1" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} className={inputClass} required />
+        <SectionCard title="前借申請" icon={<HandCoins className="h-4 w-4" strokeWidth={2} />}>
+          <form onSubmit={handleAdvanceSubmit} className="space-y-4 max-w-md">
+            <p className="text-sm text-ink-soft">前借希望金額と、任意で前借伝票を添付して申請できます。</p>
+            {advanceError && (
+              <div className="flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{advanceError}</span>
               </div>
-              <div>
-                <label className={labelClass}>メモ（任意）</label>
-                <textarea value={advanceMemo} onChange={(e) => setAdvanceMemo(e.target.value)} className={inputClass} rows={2} />
-              </div>
-              <div>
-                <label className={labelClass}>前借伝票の添付（任意）</label>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.gif" onChange={(e) => setAdvanceFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-sakura-100 file:text-sakura-800" />
-              </div>
-              <button type="submit" disabled={advanceSaving} className="px-4 py-2 rounded-xl bg-sakura-400 text-white text-sm font-medium hover:bg-sakura-500 disabled:opacity-60">
-                {advanceSaving ? '送信中…' : '申請する'}
-              </button>
-            </form>
-
+            )}
+            <Input
+              label="前借希望金額（円）"
+              type="number"
+              step="1"
+              min="1"
+              value={advanceAmount}
+              onChange={(e) => setAdvanceAmount(e.target.value)}
+              required
+            />
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">自分の申請一覧</h3>
-              {advanceLoading ? (
-                <p className="text-sm text-gray-500">読み込み中…</p>
-              ) : myAdvanceRequests.length === 0 ? (
-                <p className="text-sm text-gray-500">申請がありません。</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">申請日</th>
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">金額</th>
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">状態</th>
-                        <th className="py-2 font-medium text-gray-700 whitespace-nowrap">伝票</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {myAdvanceRequests.map((a) => (
-                        <tr key={a.id} className="border-b border-gray-50">
-                          <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{formatDate(a.created_at)}</td>
-                          <td className="py-2 pr-4 text-gray-900 whitespace-nowrap">{formatPrice(a.amount)} 円</td>
-                          <td className="py-2 pr-4 whitespace-nowrap">{ADVANCE_STATUS_LABELS[a.status as keyof typeof ADVANCE_STATUS_LABELS] ?? a.status}</td>
-                          <td className="py-2 whitespace-nowrap">
-                            {a.attachment_url ? <a href={a.attachment_url} target="_blank" rel="noopener noreferrer" className="text-sakura-600 hover:underline text-xs">表示</a> : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <label className="block text-sm font-medium text-ink-muted mb-1.5">メモ（任意）</label>
+              <textarea
+                value={advanceMemo}
+                onChange={(e) => setAdvanceMemo(e.target.value)}
+                rows={2}
+                className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+              />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-ink-muted mb-1.5">
+                <span className="inline-flex items-center gap-1.5"><Paperclip className="h-3.5 w-3.5" />前借伝票の添付（任意）</span>
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.gif"
+                onChange={(e) => setAdvanceFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-ink-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-50 file:text-brand-700 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-brand-100"
+              />
+            </div>
+            <Button type="submit" loading={advanceSaving}>申請する</Button>
+          </form>
 
-            {canApproveAdvance && pendingAdvanceRequests.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">承認待ち一覧</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">申請日</th>
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">金額</th>
-                        <th className="py-2 pr-4 font-medium text-gray-700 whitespace-nowrap">伝票</th>
-                        <th className="py-2 font-medium text-gray-700 whitespace-nowrap">操作</th>
+          <div className="mt-6">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-2">自分の申請一覧</h3>
+            {advanceLoading ? (
+              <p className="text-sm text-ink-soft">読み込み中…</p>
+            ) : myAdvanceRequests.length === 0 ? (
+              <p className="text-sm text-ink-soft">申請がありません。</p>
+            ) : (
+              <div className="overflow-x-auto -mx-5">
+                <table className="w-full min-w-max text-left text-sm">
+                  <thead>
+                    <tr className="border-y border-slate-200 bg-slate-50/40">
+                      <Th>申請日</Th>
+                      <Th className="text-right">金額</Th>
+                      <Th>状態</Th>
+                      <Th>伝票</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myAdvanceRequests.map((a) => (
+                      <tr key={a.id} className="border-b border-slate-100 last:border-0">
+                        <Td className="text-ink-muted">{formatDate(a.created_at)}</Td>
+                        <Td className="num-tabular text-right text-ink">{formatPrice(a.amount)} 円</Td>
+                        <Td>
+                          <Badge tone={advanceStatusTone(a.status)} dot>
+                            {ADVANCE_STATUS_LABELS[a.status as keyof typeof ADVANCE_STATUS_LABELS] ?? a.status}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          {a.attachment_url ? (
+                            <a href={a.attachment_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:text-brand-700 text-xs font-medium">
+                              表示 <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-ink-faint">—</span>
+                          )}
+                        </Td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {pendingAdvanceRequests.map((a) => (
-                        <tr key={a.id} className="border-b border-gray-50">
-                          <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{formatDate(a.created_at)}</td>
-                          <td className="py-2 pr-4 text-gray-900 whitespace-nowrap">{formatPrice(a.amount)} 円</td>
-                          <td className="py-2 pr-4 whitespace-nowrap">{a.attachment_url ? <a href={a.attachment_url} target="_blank" rel="noopener noreferrer" className="text-sakura-600 hover:underline text-xs">表示</a> : '—'}</td>
-                          <td className="py-2 whitespace-nowrap">
-                            <button type="button" onClick={() => handleAdvanceStatus(a.id, 'Approved')} disabled={advanceStatusUpdating === a.id} className="text-green-600 hover:underline text-xs mr-2">承認</button>
-                            <button type="button" onClick={() => handleAdvanceStatus(a.id, 'Rejected')} disabled={advanceStatusUpdating === a.id} className="text-red-600 hover:underline text-xs">却下</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
-        </section>
 
-        {/* Account settings */}
-        <section className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/80">
-            <h2 className="text-sm font-medium text-gray-700">アカウント設定</h2>
-          </div>
-          <div className="p-5 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-gray-700">メールアドレス</p>
-                <p className="text-sm text-gray-500">{user.email}</p>
+          {canApproveAdvance && pendingAdvanceRequests.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-2">承認待ち一覧</h3>
+              <div className="overflow-x-auto -mx-5">
+                <table className="w-full min-w-max text-left text-sm">
+                  <thead>
+                    <tr className="border-y border-slate-200 bg-slate-50/40">
+                      <Th>申請日</Th>
+                      <Th className="text-right">金額</Th>
+                      <Th>伝票</Th>
+                      <Th className="text-right">操作</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingAdvanceRequests.map((a) => (
+                      <tr key={a.id} className="border-b border-slate-100 last:border-0">
+                        <Td className="text-ink-muted">{formatDate(a.created_at)}</Td>
+                        <Td className="num-tabular text-right text-ink">{formatPrice(a.amount)} 円</Td>
+                        <Td>
+                          {a.attachment_url ? (
+                            <a href={a.attachment_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:text-brand-700 text-xs font-medium">
+                              表示 <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-ink-faint">—</span>
+                          )}
+                        </Td>
+                        <Td className="text-right whitespace-nowrap">
+                          <InlineAction
+                            tone="success"
+                            disabled={advanceStatusUpdating === a.id}
+                            onClick={() => handleAdvanceStatus(a.id, 'Approved')}
+                            icon={<Check className="h-3.5 w-3.5" />}
+                          >
+                            承認
+                          </InlineAction>
+                          <InlineAction
+                            tone="danger"
+                            disabled={advanceStatusUpdating === a.id}
+                            onClick={() => handleAdvanceStatus(a.id, 'Rejected')}
+                            icon={<X className="h-3.5 w-3.5" />}
+                          >
+                            却下
+                          </InlineAction>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <button
-                type="button"
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title="アカウント設定" icon={<Settings2 className="h-4 w-4" strokeWidth={2} />}>
+          <div className="divide-y divide-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-ink-muted">
+                  <Mail className="h-4 w-4" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink">メールアドレス</p>
+                  <p className="text-sm text-ink-soft truncate">{user.email}</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => { setEmailModalOpen(true); setError(null); setNewEmail(user.email); }}
-                className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                メールアドレスを変更
-              </button>
+                変更
+              </Button>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 py-2 border-t border-gray-100">
-              <div>
-                <p className="text-sm font-medium text-gray-700">パスワード</p>
-                <p className="text-sm text-gray-500">••••••••</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-ink-muted">
+                  <KeyRound className="h-4 w-4" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-ink">パスワード</p>
+                  <p className="text-sm text-ink-soft">••••••••</p>
+                </div>
               </div>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => { setPasswordModalOpen(true); setError(null); setNewPassword(''); setConfirmPassword(''); }}
-                className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                パスワードを変更
-              </button>
+                変更
+              </Button>
             </div>
-            <div className="pt-2 border-t border-gray-100">
-              <p className="text-sm text-gray-500">権限（ロール）の変更は管理者のみ行えます。</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Email change modal */}
-        {emailModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setEmailModalOpen(false)}>
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-lg border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">メールアドレスを変更</h2>
-              {error && <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-4 py-2 text-sm text-red-700">{error}</div>}
-              <form onSubmit={handleChangeEmail} className="mt-4 space-y-4">
-                <div>
-                  <label className={labelClass}>新しいメールアドレス</label>
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className={inputClass}
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-sakura-400 text-white text-sm font-medium hover:bg-sakura-500 disabled:opacity-60">
-                    {saving ? '変更中…' : '変更する'}
-                  </button>
-                  <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50" onClick={() => setEmailModalOpen(false)}>キャンセル</button>
-                </div>
-              </form>
+            <div className="pt-3">
+              <p className="text-xs text-ink-faint">権限（ロール）の変更は管理者のみ行えます。</p>
             </div>
           </div>
-        )}
-
-        {/* Cast: 売上目標 add/edit modal */}
-        {isCast && targetModalOpen && targetForm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => { setTargetModalOpen(false); setTargetForm(null); setTargetEditId(null); }}>
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-lg border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">{targetEditId ? '目標を編集' : '目標を追加'}</h2>
-              {targetError && <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-4 py-2 text-sm text-red-700">{targetError}</div>}
-              <form onSubmit={handleSaveTarget} className="mt-4 space-y-4">
-                <div>
-                  <label className={labelClass}>店舗 *</label>
-                  <select value={targetForm.staff} onChange={(e) => setTargetForm((f) => f ? { ...f, staff: e.target.value } : null)} className={inputClass} required>
-                    <option value="">選択してください</option>
-                    {myStaff.map((s) => (
-                      <option key={s.id} value={s.id}>{staffLabel(s.id)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>種別 *</label>
-                  <select value={targetForm.target_type} onChange={(e) => setTargetForm((f) => f ? { ...f, target_type: e.target.value as TargetType } : null)} className={inputClass} required>
-                    {TARGET_TYPES.map((tt) => (
-                      <option key={tt} value={tt}>{tt === 'Daily' ? '日次' : '月次'}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>目標日 *</label>
-                  <input type="date" value={targetForm.target_date} onChange={(e) => setTargetForm((f) => f ? { ...f, target_date: e.target.value } : null)} className={inputClass} required />
-                </div>
-                <div>
-                  <label className={labelClass}>目標額（円） *</label>
-                  <input type="number" step="1" min="0" value={targetForm.target_amount} onChange={(e) => setTargetForm((f) => f ? { ...f, target_amount: e.target.value } : null)} className={inputClass} required />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button type="submit" disabled={targetSaving} className="px-4 py-2 rounded-xl bg-sakura-400 text-white text-sm font-medium hover:bg-sakura-500 disabled:opacity-60">
-                    {targetSaving ? '保存中…' : targetEditId ? '保存' : '追加'}
-                  </button>
-                  <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50" onClick={() => { setTargetModalOpen(false); setTargetForm(null); setTargetEditId(null); }}>キャンセル</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Password change modal */}
-        {passwordModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setPasswordModalOpen(false)}>
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-lg border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">パスワードを変更</h2>
-              {error && <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-4 py-2 text-sm text-red-700">{error}</div>}
-              <form onSubmit={handleChangePassword} className="mt-4 space-y-4">
-                <div>
-                  <label className={labelClass}>新しいパスワード</label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className={inputClass}
-                    required
-                    minLength={1}
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>新しいパスワード（確認）</label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={inputClass}
-                    required
-                    minLength={1}
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-sakura-400 text-white text-sm font-medium hover:bg-sakura-500 disabled:opacity-60">
-                    {saving ? '変更中…' : '変更する'}
-                  </button>
-                  <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50" onClick={() => setPasswordModalOpen(false)}>キャンセル</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        </SectionCard>
       </div>
-    </div>
+
+      <Modal open={emailModalOpen} onClose={() => setEmailModalOpen(false)} title="メールアドレスを変更" size="sm">
+        {error && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+        <form onSubmit={handleChangeEmail} className="space-y-4">
+          <Input
+            label="新しいメールアドレス"
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            required
+            autoComplete="email"
+            leftIcon={<Mail className="h-4 w-4" />}
+          />
+          <div className="flex gap-2">
+            <Button type="submit" loading={saving}>変更する</Button>
+            <Button type="button" variant="outline" onClick={() => setEmailModalOpen(false)}>キャンセル</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} title="パスワードを変更" size="sm">
+        {error && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <Input
+            label="新しいパスワード"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={1}
+            autoComplete="new-password"
+            leftIcon={<KeyRound className="h-4 w-4" />}
+          />
+          <Input
+            label="新しいパスワード（確認）"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={1}
+            autoComplete="new-password"
+            leftIcon={<KeyRound className="h-4 w-4" />}
+          />
+          <div className="flex gap-2">
+            <Button type="submit" loading={saving}>変更する</Button>
+            <Button type="button" variant="outline" onClick={() => setPasswordModalOpen(false)}>キャンセル</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={isCast && targetModalOpen && !!targetForm}
+        onClose={() => { setTargetModalOpen(false); setTargetForm(null); setTargetEditId(null); }}
+        title={targetEditId ? '目標を編集' : '目標を追加'}
+        size="sm"
+      >
+        {targetError && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{targetError}</span>
+          </div>
+        )}
+        {targetForm && (
+          <form onSubmit={handleSaveTarget} className="space-y-4">
+            <Select
+              label="店舗"
+              value={targetForm.staff}
+              onChange={(e) => setTargetForm((f) => f ? { ...f, staff: e.target.value } : null)}
+              required
+            >
+              <option value="">選択してください</option>
+              {myStaff.map((s) => <option key={s.id} value={s.id}>{staffLabel(s.id)}</option>)}
+            </Select>
+            <Select
+              label="種別"
+              value={targetForm.target_type}
+              onChange={(e) => setTargetForm((f) => f ? { ...f, target_type: e.target.value as TargetType } : null)}
+              required
+            >
+              {TARGET_TYPES.map((tt) => <option key={tt} value={tt}>{tt === 'Daily' ? '日次' : '月次'}</option>)}
+            </Select>
+            <Input
+              label="目標日"
+              type="date"
+              value={targetForm.target_date}
+              onChange={(e) => setTargetForm((f) => f ? { ...f, target_date: e.target.value } : null)}
+              required
+            />
+            <Input
+              label="目標額（円）"
+              type="number"
+              step="1"
+              min="0"
+              value={targetForm.target_amount}
+              onChange={(e) => setTargetForm((f) => f ? { ...f, target_amount: e.target.value } : null)}
+              required
+            />
+            <div className="flex gap-2 pt-1">
+              <Button type="submit" loading={targetSaving}>{targetEditId ? '保存' : '追加'}</Button>
+              <Button type="button" variant="outline" onClick={() => { setTargetModalOpen(false); setTargetForm(null); setTargetEditId(null); }}>キャンセル</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </PageContainer>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th className={`px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap ${className || ''}`}>
+      {children}
+    </th>
+  );
+}
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-5 py-3 ${className || ''}`}>{children}</td>;
+}
+
+type InlineTone = 'default' | 'danger' | 'danger-soft' | 'success';
+const inlineTone: Record<InlineTone, string> = {
+  default: 'text-ink-muted hover:text-ink hover:bg-slate-100',
+  danger: 'text-rose-600 hover:text-rose-700 hover:bg-rose-50',
+  'danger-soft': 'text-ink-soft hover:text-rose-600 hover:bg-rose-50',
+  success: 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50',
+};
+
+function InlineAction({
+  children,
+  onClick,
+  icon,
+  tone = 'default',
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  tone?: InlineTone;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${inlineTone[tone]}`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }

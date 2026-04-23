@@ -1,5 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import {
+  UsersRound,
+  Plus,
+  Eye,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Save,
+  AlertCircle,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 import { formatPrice } from '../utils/formatPrice';
@@ -7,49 +18,16 @@ import type { StaffMember, StaffMemberFormData } from '../types/staffMember';
 import type { Store } from '../types/customer';
 import type { User } from '../types/user';
 import { API } from '../config';
-
-const inputClass =
-  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-sky-300 focus:ring-1 focus:ring-sky-300 text-sm';
-const labelClass = 'block text-sm font-medium text-gray-700';
-
-const iconClass = 'w-4 h-4 shrink-0 inline-block align-middle';
-
-const IconView = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-  </svg>
-);
-const IconEdit = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-);
-const IconDelete = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-const IconCheck = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-);
-const IconClose = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-const IconSave = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-  </svg>
-);
-const IconAdd = () => (
-  <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-);
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Modal,
+  PageContainer,
+  PageHeader,
+  Select,
+} from '../components/ui';
 
 function formatDateTime(s: string) {
   if (!s) return '—';
@@ -94,13 +72,13 @@ export default function StaffMemberList() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /** Stores the logged-in user can select. Supervisor: API already returns only viewable_stores. */
   const allowedStores = useMemo(() => {
     if (currentUser?.role === 'Admin' || currentUser?.role === 'Owner') return stores;
-    if (currentUser?.role === 'Supervisor') return stores; // API returns only viewable_stores
+    if (currentUser?.role === 'Supervisor') return stores;
     if (!currentUser?.store_id) return stores;
     return stores.filter((s) => s.id === currentUser.store_id);
   }, [stores, currentUser?.store_id, currentUser?.role]);
+
   const [viewId, setViewId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<StaffMemberFormData | null>(null);
@@ -157,7 +135,7 @@ export default function StaffMemberList() {
       fetchMembers();
       setCreateOpen(false);
       setCreateForm(null);
-    } catch (err: unknown) {
+    } catch {
       setError(ERROR_MESSAGES.create);
     }
     setSaving(false);
@@ -179,7 +157,7 @@ export default function StaffMemberList() {
       fetchMembers();
       setEditId(null);
       setEditForm(null);
-    } catch (err: unknown) {
+    } catch {
       setError(ERROR_MESSAGES.update);
     }
     setSaving(false);
@@ -197,73 +175,78 @@ export default function StaffMemberList() {
     }
   };
 
+  const viewMember = viewId ? members.find((x) => x.id === viewId) : null;
+
   return (
-    <div className="min-h-screen bg-sky-50/80">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-medium text-gray-800 tracking-tight">スタッフ・担当者管理</h1>
-            <p className="mt-1 text-sm text-gray-500">スタッフの登録・閲覧・編集・削除ができます。</p>
-          </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600"
+    <PageContainer>
+      <PageHeader
+        title="スタッフ・担当者管理"
+        description="スタッフの登録・閲覧・編集・削除ができます。"
+        icon={<UsersRound className="h-5 w-5" strokeWidth={2} />}
+        actions={
+          <Button
+            leftIcon={<Plus className="h-4 w-4" strokeWidth={2} />}
             onClick={() => { setCreateOpen(true); setError(null); setCreateForm(emptyForm()); }}
           >
-            <IconAdd /> 新規登録
-          </button>
+            新規登録
+          </Button>
+        }
+      />
+
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {error && (
-          <div className="mt-4 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
+      <Card padded={false} className="overflow-hidden">
         {loading ? (
-          <p className="mt-8 text-gray-500">読み込み中…</p>
+          <div className="px-4 py-12 text-center text-sm text-ink-soft">読み込み中…</div>
         ) : (
-          <div className="mt-6 overflow-x-auto rounded-xl border border-gray-100 bg-white/90 shadow-sm">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-max text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/80">
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">ユーザー</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">店舗</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">時給（円）</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">歩合率</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">出勤中</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">出勤</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 whitespace-nowrap">退勤</th>
-                  <th className="px-2 sm:px-4 py-3 font-medium text-gray-700 text-right whitespace-nowrap">操作</th>
+                <tr className="bg-slate-50/80 border-b border-slate-200">
+                  <Th>ユーザー</Th>
+                  <Th>店舗</Th>
+                  <Th className="text-right">時給（円）</Th>
+                  <Th className="text-right">歩合率</Th>
+                  <Th>出勤中</Th>
+                  <Th>出勤</Th>
+                  <Th>退勤</Th>
+                  <Th className="text-right">操作</Th>
                 </tr>
               </thead>
               <tbody>
                 {members.length === 0 ? (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">登録がありません</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-ink-soft">登録がありません</td></tr>
                 ) : (
                   members.map((m) => (
-                    <tr key={m.id} className="border-b border-gray-50 hover:bg-sky-50/50">
-                      <td className="px-2 sm:px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{userDisplayName(m.user)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{storeName(m.store)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatPrice(m.hourly_wage)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{m.commission_rate}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{m.is_on_duty ? 'はい' : 'いいえ'}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatDateTime(m.check_in)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-gray-600 whitespace-nowrap">{formatDateTime(m.check_out)}</td>
-                      <td className="px-2 sm:px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex flex-wrap justify-end gap-1 sm:gap-2 items-center">
-                          <button type="button" className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 text-xs sm:text-sm" onClick={() => setViewId(m.id)}><IconView />表示</button>
-                          <button type="button" className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs sm:text-sm" onClick={() => openEdit(m)}><IconEdit />編集</button>
-                          {deleteConfirmId === m.id ? (
-                            <>
-                              <button type="button" className="inline-flex items-center gap-1 text-red-600 text-xs sm:text-sm font-medium" onClick={() => handleDelete(m.id)}><IconCheck />削除する</button>
-                              <button type="button" className="inline-flex items-center gap-1 text-gray-500 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(null)}><IconClose />キャンセル</button>
-                            </>
-                          ) : (
-                            <button type="button" className="inline-flex items-center gap-1 text-red-500 hover:text-red-600 text-xs sm:text-sm" onClick={() => setDeleteConfirmId(m.id)}><IconDelete />削除</button>
-                          )}
-                        </div>
-                      </td>
+                    <tr key={m.id} className="border-b border-slate-100 last:border-0 hover:bg-brand-50/30 transition-colors">
+                      <Td className="font-medium text-ink">{userDisplayName(m.user)}</Td>
+                      <Td><Badge tone="neutral">{storeName(m.store)}</Badge></Td>
+                      <Td className="num-tabular text-right text-ink">{formatPrice(m.hourly_wage)}</Td>
+                      <Td className="num-tabular text-right text-ink-muted">{m.commission_rate}</Td>
+                      <Td>
+                        {m.is_on_duty
+                          ? <Badge tone="success" dot>出勤中</Badge>
+                          : <Badge tone="neutral">退勤</Badge>}
+                      </Td>
+                      <Td className="num-tabular text-ink-muted">{formatDateTime(m.check_in)}</Td>
+                      <Td className="num-tabular text-ink-muted">{formatDateTime(m.check_out)}</Td>
+                      <Td className="text-right whitespace-nowrap">
+                        <InlineAction onClick={() => setViewId(m.id)} icon={<Eye className="h-3.5 w-3.5" />}>表示</InlineAction>
+                        <InlineAction onClick={() => openEdit(m)} icon={<Pencil className="h-3.5 w-3.5" />}>編集</InlineAction>
+                        {deleteConfirmId === m.id ? (
+                          <>
+                            <InlineAction tone="danger" onClick={() => handleDelete(m.id)} icon={<Check className="h-3.5 w-3.5" />}>削除する</InlineAction>
+                            <InlineAction onClick={() => setDeleteConfirmId(null)} icon={<X className="h-3.5 w-3.5" />}>キャンセル</InlineAction>
+                          </>
+                        ) : (
+                          <InlineAction tone="danger-soft" onClick={() => setDeleteConfirmId(m.id)} icon={<Trash2 className="h-3.5 w-3.5" />}>削除</InlineAction>
+                        )}
+                      </Td>
                     </tr>
                   ))
                 )}
@@ -271,72 +254,71 @@ export default function StaffMemberList() {
             </table>
           </div>
         )}
+      </Card>
 
-        {/* View modal */}
-        {viewId && (() => {
-          const m = members.find((x) => x.id === viewId);
-          if (!m) return null;
-          return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setViewId(null)}>
-              <div className="w-full max-w-md rounded-2xl bg-white shadow-lg border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">スタッフ情報</h2>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div><dt className="text-gray-500">ユーザー</dt><dd className="font-medium">{userDisplayName(m.user)}</dd></div>
-                  <div><dt className="text-gray-500">店舗</dt><dd>{storeName(m.store)}</dd></div>
-                  <div><dt className="text-gray-500">時給（円）</dt><dd>{formatPrice(m.hourly_wage)}</dd></div>
-                  <div><dt className="text-gray-500">歩合率</dt><dd>{m.commission_rate}</dd></div>
-                  <div><dt className="text-gray-500">出勤中</dt><dd>{m.is_on_duty ? 'はい' : 'いいえ'}</dd></div>
-                  <div><dt className="text-gray-500">出勤</dt><dd>{formatDateTime(m.check_in)}</dd></div>
-                  <div><dt className="text-gray-500">退勤</dt><dd>{formatDateTime(m.check_out)}</dd></div>
-                </dl>
-                <div className="mt-4 flex gap-2">
-                  <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 text-white text-sm hover:bg-sky-600" onClick={() => { setViewId(null); openEdit(m); }}><IconEdit />編集</button>
-                  <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50" onClick={() => setViewId(null)}><IconClose />閉じる</button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Create modal */}
-        {createOpen && createForm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => { setCreateOpen(false); setCreateForm(null); }}>
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-lg border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">スタッフを登録</h2>
-              <StaffMemberForm
-                form={createForm}
-                setForm={setCreateForm}
-                users={users}
-                stores={allowedStores}
-                onSubmit={handleCreate}
-                saving={saving}
-                submitLabel="登録"
-                onCancel={() => { setCreateOpen(false); setCreateForm(null); }}
+      <Modal open={!!viewMember} onClose={() => setViewId(null)} title="スタッフ情報" size="sm">
+        {viewMember && (
+          <>
+            <dl className="space-y-3 text-sm">
+              <Row label="ユーザー" value={<span className="font-medium text-ink">{userDisplayName(viewMember.user)}</span>} />
+              <Row label="店舗" value={storeName(viewMember.store)} />
+              <Row label="時給（円）" value={<span className="num-tabular">{formatPrice(viewMember.hourly_wage)}</span>} />
+              <Row label="歩合率" value={<span className="num-tabular">{viewMember.commission_rate}</span>} />
+              <Row
+                label="出勤中"
+                value={viewMember.is_on_duty ? <Badge tone="success" dot>出勤中</Badge> : <Badge tone="neutral">退勤</Badge>}
               />
+              <Row label="出勤" value={formatDateTime(viewMember.check_in)} />
+              <Row label="退勤" value={formatDateTime(viewMember.check_out)} />
+            </dl>
+            <div className="mt-5 flex gap-2">
+              <Button size="sm" leftIcon={<Pencil className="h-3.5 w-3.5" />} onClick={() => { setViewId(null); openEdit(viewMember); }}>編集</Button>
+              <Button size="sm" variant="outline" onClick={() => setViewId(null)}>閉じる</Button>
             </div>
-          </div>
+          </>
         )}
+      </Modal>
 
-        {/* Edit modal */}
-        {editId && editForm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => { setEditId(null); setEditForm(null); }}>
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-lg border border-gray-100 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-medium text-gray-800 border-b border-gray-100 pb-3">スタッフを編集</h2>
-              <StaffMemberForm
-                form={editForm}
-                setForm={setEditForm}
-                users={users}
-                stores={allowedStores}
-                onSubmit={handleSaveEdit}
-                saving={saving}
-                submitLabel="保存"
-                onCancel={() => { setEditId(null); setEditForm(null); }}
-              />
-            </div>
-          </div>
+      <Modal
+        open={createOpen && !!createForm}
+        onClose={() => { setCreateOpen(false); setCreateForm(null); }}
+        title="スタッフを登録"
+        size="sm"
+      >
+        {createForm && (
+          <StaffMemberForm
+            form={createForm}
+            setForm={setCreateForm}
+            users={users}
+            stores={allowedStores}
+            onSubmit={handleCreate}
+            saving={saving}
+            submitLabel="登録"
+            onCancel={() => { setCreateOpen(false); setCreateForm(null); }}
+          />
         )}
-      </div>
-    </div>
+      </Modal>
+
+      <Modal
+        open={!!editId && !!editForm}
+        onClose={() => { setEditId(null); setEditForm(null); }}
+        title="スタッフを編集"
+        size="sm"
+      >
+        {editForm && (
+          <StaffMemberForm
+            form={editForm}
+            setForm={setEditForm}
+            users={users}
+            stores={allowedStores}
+            onSubmit={handleSaveEdit}
+            saving={saving}
+            submitLabel="保存"
+            onCancel={() => { setEditId(null); setEditForm(null); }}
+          />
+        )}
+      </Modal>
+    </PageContainer>
   );
 }
 
@@ -351,7 +333,6 @@ interface StaffMemberFormProps {
   onCancel: () => void;
 }
 
-/** Cast users (role Cast) that belong to the given store. */
 function castsForStore(users: User[], storeId: string): User[] {
   if (!storeId) return [];
   return users.filter((u) => u.role === 'Cast' && u.store === storeId);
@@ -367,51 +348,108 @@ function StaffMemberForm({ form, setForm, users, stores, onSubmit, saving, submi
   const casts = form.store ? castsForStore(users, form.store) : [];
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 space-y-4">
-      <div>
-        <label className={labelClass}>店舗 *</label>
-        <select value={form.store} onChange={(e) => handleStoreChange(e.target.value)} className={inputClass} required>
-          <option value="">選択してください</option>
-          {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className={labelClass}>キャスト（ユーザー） *</label>
-        <select value={form.user} onChange={(e) => update({ user: e.target.value })} className={inputClass} required disabled={!form.store}>
-          <option value="">{form.store ? '選択してください' : '先に店舗を選択してください'}</option>
-          {casts.map((u) => (
-            <option key={u.id} value={u.id}>
-              {(u.username && u.username.trim()) ? u.username : u.email}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className={labelClass}>時給（円） *</label>
-        <input type="number" step="1" min="0" value={form.hourly_wage} onChange={(e) => update({ hourly_wage: e.target.value })} className={inputClass} required />
-      </div>
-      <div>
-        <label className={labelClass}>歩合率 *</label>
-        <input type="number" step="0.01" min="0" max="100" value={form.commission_rate} onChange={(e) => update({ commission_rate: e.target.value })} className={inputClass} required />
-      </div>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" id="is_on_duty" checked={form.is_on_duty} onChange={(e) => update({ is_on_duty: e.target.checked })} className="rounded border-gray-300 text-sky-600 focus:ring-sky-500" />
-        <label htmlFor="is_on_duty" className="text-sm text-gray-700">出勤中</label>
-      </div>
-      <div>
-        <label className={labelClass}>出勤日時</label>
-        <input type="datetime-local" value={form.check_in} onChange={(e) => update({ check_in: e.target.value })} className={inputClass} />
-      </div>
-      <div>
-        <label className={labelClass}>退勤日時</label>
-        <input type="datetime-local" value={form.check_out} onChange={(e) => update({ check_out: e.target.value })} className={inputClass} />
-      </div>
+    <form onSubmit={onSubmit} className="space-y-4">
+      <Select label="店舗" value={form.store} onChange={(e) => handleStoreChange(e.target.value)} required>
+        <option value="">選択してください</option>
+        {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </Select>
+      <Select
+        label="キャスト（ユーザー）"
+        value={form.user}
+        onChange={(e) => update({ user: e.target.value })}
+        required
+        disabled={!form.store}
+      >
+        <option value="">{form.store ? '選択してください' : '先に店舗を選択してください'}</option>
+        {casts.map((u) => (
+          <option key={u.id} value={u.id}>
+            {(u.username && u.username.trim()) ? u.username : u.email}
+          </option>
+        ))}
+      </Select>
+      <Input
+        label="時給（円）"
+        type="number"
+        step="1"
+        min="0"
+        value={form.hourly_wage}
+        onChange={(e) => update({ hourly_wage: e.target.value })}
+        required
+      />
+      <Input
+        label="歩合率"
+        type="number"
+        step="0.01"
+        min="0"
+        max="100"
+        value={form.commission_rate}
+        onChange={(e) => update({ commission_rate: e.target.value })}
+        required
+      />
+      <label className="flex items-center gap-2 text-sm text-ink-muted">
+        <input
+          type="checkbox"
+          checked={form.is_on_duty}
+          onChange={(e) => update({ is_on_duty: e.target.checked })}
+          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        出勤中
+      </label>
+      <Input label="出勤日時" type="datetime-local" value={form.check_in} onChange={(e) => update({ check_in: e.target.value })} />
+      <Input label="退勤日時" type="datetime-local" value={form.check_out} onChange={(e) => update({ check_out: e.target.value })} />
       <div className="flex gap-2 pt-2">
-        <button type="submit" disabled={saving} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-medium hover:bg-sky-600 disabled:opacity-60">
-          {saving ? '送信中…' : <><IconSave />{submitLabel}</>}
-        </button>
-        <button type="button" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50" onClick={onCancel}><IconClose />キャンセル</button>
+        <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />}>{submitLabel}</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>キャンセル</Button>
       </div>
     </form>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ink-soft whitespace-nowrap ${className || ''}`}>
+      {children}
+    </th>
+  );
+}
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-4 py-3 ${className || ''}`}>{children}</td>;
+}
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-ink-soft shrink-0">{label}</dt>
+      <dd className="text-right text-ink">{value}</dd>
+    </div>
+  );
+}
+
+type InlineTone = 'default' | 'danger' | 'danger-soft';
+const inlineTone: Record<InlineTone, string> = {
+  default: 'text-ink-muted hover:text-ink hover:bg-slate-100',
+  danger: 'text-rose-600 hover:text-rose-700 hover:bg-rose-50',
+  'danger-soft': 'text-ink-soft hover:text-rose-600 hover:bg-rose-50',
+};
+
+function InlineAction({
+  children,
+  onClick,
+  icon,
+  tone = 'default',
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  tone?: InlineTone;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${inlineTone[tone]}`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }
