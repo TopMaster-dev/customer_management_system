@@ -299,7 +299,7 @@ class VisitRecord(models.Model):
     memo = models.TextField(blank=True, default="")
     unpaid_amount = models.BigIntegerField()
     received_amount = models.BigIntegerField()
-    unpaid_date = models.DateField(db_column="unpaid date", null=True, blank=True)
+    unpaid_date = models.DateField(db_column="unpaid_date", null=True, blank=True)
     receipt = models.BooleanField()
 
     class Meta:

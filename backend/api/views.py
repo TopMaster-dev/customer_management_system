@@ -1200,8 +1200,6 @@ def registration_mode(request):
     Public endpoint. Returns whether an admin exists so the frontend can show the correct registration flow.
     When has_admin is true, new users must register as Cast with a store. Returns store list for the dropdown.
     """
-    from .serializers import StoreSerializer
-
     has_admin = CmsUser.objects.filter(role__in=[CmsUser.Role.ADMIN, CmsUser.Role.OWNER]).exists()
     stores = list(Store.objects.all()) if has_admin else []
     return Response({
